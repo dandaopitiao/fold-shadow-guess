@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.DS_Store
+.playwright-cli/
+tmp/
+output/
+*.log
+
+# Local packaged archives generated for portfolio submission.
+release/
+*.zip
