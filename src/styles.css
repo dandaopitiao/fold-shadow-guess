@@ -342,6 +342,15 @@ h1 {
   font-weight: 700;
 }
 
+.lore-line {
+  margin-top: 10px;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #8f6270 !important;
+  font-style: italic;
+  line-height: 1.6 !important;
+}
+
 .hero-tags {
   flex-wrap: wrap;
   margin: 22px 0;
@@ -471,6 +480,18 @@ h1 {
   font-weight: 1000;
 }
 
+.player-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.persona {
+  color: #8f6270;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .tutorial {
   padding: 28px;
 }
@@ -562,6 +583,35 @@ h1 {
   color: white;
   border-radius: 999px;
   box-shadow: 0 8px 0 rgba(72, 49, 217, 0.22);
+  transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.08s ease;
+}
+
+/* 紧迫脉冲：timeLeft ≤ 10s */
+.timer.urgent {
+  background: linear-gradient(180deg, #ff7b42, #e04a1a);
+  box-shadow: 0 8px 0 rgba(192, 50, 10, 0.32), 0 0 18px rgba(255, 100, 40, 0.35);
+  animation: timer-pulse 0.7s ease-in-out infinite;
+}
+
+/* 极限抖动：timeLeft ≤ 5s */
+.timer.critical {
+  background: linear-gradient(180deg, #ff3d59, #c6283a);
+  box-shadow: 0 8px 0 rgba(160, 20, 30, 0.35), 0 0 28px rgba(255, 50, 60, 0.45);
+  animation: timer-shake 0.35s ease-in-out infinite;
+}
+
+@keyframes timer-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+@keyframes timer-shake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-4px) scale(1.04); }
+  30% { transform: translateX(4px) scale(1.04); }
+  45% { transform: translateX(-3px); }
+  60% { transform: translateX(3px); }
+  75% { transform: translateX(-1px); }
 }
 
 .editor-shell {
@@ -662,6 +712,51 @@ h1 {
   background: rgba(255, 255, 255, 0.8);
   color: var(--paper-dark);
   font-weight: 1000;
+}
+
+/* 缩放 & 吸附工具栏 */
+.zoom-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.icon-button.small {
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  border-radius: 12px;
+  font-size: 14px;
+}
+
+.icon-button.small.active {
+  background: rgba(136, 200, 255, 0.35);
+  border-color: var(--sky);
+  color: #3d6fe0;
+}
+
+.icon-button.small.dim {
+  opacity: 0.5;
+}
+
+.zoom-label {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--paper-dark);
+  font-size: 13px;
+  font-weight: 1000;
+}
+
+/* 放大模式画布 */
+.paper-svg.zoomed {
+  border-color: var(--sky);
+  box-shadow:
+    inset 0 0 0 2px rgba(137, 200, 255, 0.28),
+    0 14px 24px rgba(132, 60, 75, 0.12),
+    0 0 0 4px rgba(137, 200, 255, 0.22);
 }
 
 .game-side {
