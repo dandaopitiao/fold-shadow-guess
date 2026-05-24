@@ -871,6 +871,7 @@ h1 {
 .tool-row {
   justify-content: flex-end;
   margin-top: 12px;
+  flex-wrap: wrap;
 }
 
 .tool-row span {
@@ -879,6 +880,12 @@ h1 {
   background: rgba(255, 255, 255, 0.8);
   color: var(--paper-dark);
   font-weight: 1000;
+}
+
+.finish-cut-button {
+  min-height: 46px;
+  padding: 0 20px;
+  box-shadow: 0 8px 0 #c62942, 0 16px 26px rgba(255, 79, 102, 0.24);
 }
 
 /* 缩放 & 吸附工具栏 */

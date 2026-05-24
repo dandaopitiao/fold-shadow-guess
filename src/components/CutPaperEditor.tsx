@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import {
+  Check,
   Eraser,
   RotateCcw,
   Scissors,
@@ -33,6 +34,7 @@ type CutPaperEditorProps = {
   room: Room;
   paths: CutPath[];
   onPathsChange: (paths: CutPath[]) => void;
+  onFinish: () => void;
 };
 
 /** 根据难度获取平滑等级（越低越抖，越高越平滑带吸附） */
@@ -42,7 +44,7 @@ function smoothLevelForRoom(room: Room): number {
   return 1;
 }
 
-export function CutPaperEditor({ room, paths, onPathsChange }: CutPaperEditorProps) {
+export function CutPaperEditor({ room, paths, onPathsChange, onFinish }: CutPaperEditorProps) {
   const [draft, setDraft] = useState<Point[]>([]);
   const [zoomLevel, setZoomLevel] = useState(1); // 1x, 1.5x, 2x
   const [snapOn, setSnapOn] = useState(true);
@@ -264,6 +266,16 @@ export function CutPaperEditor({ room, paths, onPathsChange }: CutPaperEditorPro
             <Eraser size={18} />
           </button>
           <span>已剪 {paths.length} 刀</span>
+          <button
+            className="primary-button finish-cut-button"
+            onClick={() => {
+              sound.unfold();
+              onFinish();
+            }}
+          >
+            <Check size={18} />
+            完成了
+          </button>
         </div>
       </div>
 

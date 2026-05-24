@@ -42,7 +42,12 @@ export function GameTable({
         </div>
       </div>
 
-      <CutPaperEditor room={room} paths={paths} onPathsChange={onPathsChange} />
+      <CutPaperEditor
+        room={room}
+        paths={paths}
+        onPathsChange={onPathsChange}
+        onFinish={onFinish}
+      />
 
       <aside className="game-side">
         <div className="notice">{notice}</div>
@@ -82,7 +87,7 @@ export function GameTable({
           }}
         >
           <Check size={20} />
-          展开看结果
+          直接展开
         </button>
       </aside>
     </section>
