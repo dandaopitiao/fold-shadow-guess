@@ -13,6 +13,7 @@ import {
   uniqueWrong,
   ROUND_SECONDS,
   botNames,
+  botGuessNotices,
 } from "./data/constants";
 import { calcDrawerScore, applyRoundScores } from "./game/scoring";
 import { sound } from "./audio/sound-manager";
@@ -32,7 +33,7 @@ export function App() {
   const [guesses, setGuesses] = useState<Guess[]>([]);
   const [roundIndex, setRoundIndex] = useState(1);
   const [notice, setNotice] = useState(
-    "开剪！剪出题目本体，别让大家猜成拖鞋。"
+    "沙沙沙… 拿起小剪刀开剪吧！记得让人看出你剪的是什么～"
   );
   const [muted, setMuted] = useState(false);
   const lastBotGuessSecond = useRef<number | null>(null);
@@ -60,7 +61,7 @@ export function App() {
     setTimeLeft(ROUND_SECONDS);
     prevTimeRef.current = ROUND_SECONDS;
     lastBotGuessSecond.current = null;
-    setNotice("开剪！其他人会实时乱猜。");
+    setNotice("簌簌—— 纸已折好，快快下刀！");
     sound.start();
     setPhase("draw");
   };
@@ -133,7 +134,7 @@ export function App() {
 
       if (correct) {
         sound.correct();
-        setNotice(`${playerName} 猜中了，但答案先不公布。`);
+        setNotice(`${pick(botGuessNotices).replace("{name}", playerName)}`);
       } else {
         sound.wrong();
       }

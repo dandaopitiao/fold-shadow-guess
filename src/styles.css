@@ -245,6 +245,168 @@ button {
     rgba(255, 253, 248, 0.76);
 }
 
+.bubble-stage {
+  position: relative;
+  height: 330px;
+  margin: -8px 0 22px;
+  border-radius: 38px;
+  overflow: hidden;
+}
+
+.float-bubble {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border: 4px solid rgba(255, 255, 255, 0.9);
+  border-radius: 999px;
+  color: var(--ink);
+  text-align: center;
+  box-shadow:
+    inset 10px 12px 20px rgba(255, 255, 255, 0.42),
+    0 16px 32px rgba(132, 60, 75, 0.18);
+  backdrop-filter: blur(12px);
+  animation: bubble-drift 5.8s ease-in-out infinite alternate;
+}
+
+.float-bubble::after {
+  position: absolute;
+  left: 22%;
+  top: 18%;
+  width: 18%;
+  height: 18%;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  content: "";
+}
+
+.float-bubble:hover {
+  transform: translateY(-4px) scale(1.03);
+  filter: saturate(1.08);
+}
+
+.float-bubble:active {
+  transform: scale(0.97);
+}
+
+.title-bubble {
+  left: 22px;
+  top: 24px;
+  width: 220px;
+  height: 220px;
+  background: radial-gradient(circle at 30% 24%, #ffffff, #ffcfda 36%, #ff5b73 100%);
+  color: var(--paper-dark);
+  text-shadow: 0 2px 0 rgba(255, 255, 255, 0.46);
+  font-weight: 1000;
+}
+
+.title-bubble span {
+  font-size: 46px;
+  line-height: 0.94;
+}
+
+.title-bubble small,
+.start-bubble small {
+  font-weight: 900;
+}
+
+.start-bubble {
+  right: 18px;
+  bottom: 20px;
+  width: 190px;
+  height: 190px;
+  background: radial-gradient(circle at 30% 24%, #ffffff, #ffe59a 38%, #ff805d 100%);
+  color: white;
+  text-shadow: 0 2px 0 rgba(112, 54, 28, 0.2);
+  font-weight: 1000;
+  animation-delay: -1.7s;
+}
+
+.start-bubble span {
+  font-size: 42px;
+}
+
+.tiny-bubble {
+  width: 86px;
+  height: 86px;
+  background: rgba(255, 255, 255, 0.64);
+  color: var(--paper-dark);
+  font-weight: 1000;
+}
+
+.bubble-a {
+  left: 258px;
+  top: 30px;
+  background: rgba(137, 200, 255, 0.52);
+  animation-delay: -0.8s;
+}
+
+.bubble-b {
+  right: 76px;
+  top: 26px;
+  background: rgba(110, 226, 200, 0.48);
+  animation-delay: -2.2s;
+}
+
+.bubble-c {
+  left: 218px;
+  bottom: 28px;
+  background: rgba(255, 214, 102, 0.62);
+  animation-delay: -3.1s;
+}
+
+.bubble-d {
+  left: 92px;
+  bottom: 8px;
+  width: 72px;
+  height: 72px;
+  background: rgba(155, 140, 255, 0.38);
+  animation-delay: -4s;
+}
+
+.micro-bubbles {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  pointer-events: none;
+}
+
+.micro-bubbles span {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 3px solid rgba(255, 255, 255, 0.9);
+  border-radius: 999px;
+  background: rgba(137, 200, 255, 0.32);
+  animation: bubble-pop 0.72s ease-out forwards;
+}
+
+.micro-bubbles span:nth-child(1) { --x: -68px; --y: -74px; }
+.micro-bubbles span:nth-child(2) { --x: -22px; --y: -94px; animation-delay: 0.04s; }
+.micro-bubbles span:nth-child(3) { --x: 42px; --y: -78px; animation-delay: 0.08s; }
+.micro-bubbles span:nth-child(4) { --x: 74px; --y: -28px; animation-delay: 0.12s; }
+.micro-bubbles span:nth-child(5) { --x: -84px; --y: -22px; animation-delay: 0.16s; }
+
+.hero-copy {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes bubble-drift {
+  from { translate: -8px -6px; }
+  to { translate: 8px 6px; }
+}
+
+@keyframes bubble-pop {
+  from {
+    opacity: 0.9;
+    transform: translate(0, 0) scale(0.3);
+  }
+  to {
+    opacity: 0;
+    transform: translate(var(--x), var(--y)) scale(1.25);
+  }
+}
+
 .hero-panel::before,
 .hero-panel::after {
   position: absolute;
@@ -534,10 +696,13 @@ h1 {
 .game-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 330px;
+  grid-template-rows: auto minmax(0, 1fr);
   grid-template-areas:
     "header side"
     "editor side";
   gap: 16px;
+  height: calc(100vh - 112px);
+  min-height: 680px;
 }
 
 .round-header {
@@ -619,6 +784,7 @@ h1 {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
+  min-height: 0;
 }
 
 .canvas-card {
@@ -766,6 +932,8 @@ h1 {
   flex-direction: column;
   gap: 12px;
   padding: 14px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .notice {
@@ -780,8 +948,10 @@ h1 {
 }
 
 .guess-box {
-  min-height: 250px;
+  flex: 1 1 260px;
+  min-height: 0;
   padding: 14px;
+  overflow: hidden;
   border-radius: 24px;
   background: rgba(255, 255, 255, 0.66);
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.88);
@@ -791,6 +961,9 @@ h1 {
   display: grid;
   gap: 8px;
   margin-top: 12px;
+  max-height: calc(100% - 36px);
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .empty {
@@ -808,6 +981,12 @@ h1 {
   border-radius: 999px;
   background: rgba(255, 244, 223, 0.88);
   box-shadow: 0 5px 12px rgba(132, 60, 75, 0.08);
+}
+
+.score-panel.compact {
+  flex: 0 0 auto;
+  max-height: 230px;
+  overflow-y: auto;
 }
 
 .guess.correct {

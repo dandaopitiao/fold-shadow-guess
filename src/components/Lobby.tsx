@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Play, Scissors, Users } from "lucide-react";
 import type { Player, Room } from "../types";
 import { sound } from "../audio/sound-manager";
@@ -12,41 +13,62 @@ type LobbyProps = {
 };
 
 export function Lobby({ rooms, selectedRoom, players, onSelect, onStart }: LobbyProps) {
+  const [burstKey, setBurstKey] = useState(0);
+
+  const popBubble = () => {
+    sound.bubble();
+    setBurstKey((value) => value + 1);
+  };
+
   return (
     <section className="lobby-grid">
       <div className="hero-panel">
-        <div className="eyebrow">
-          <Scissors size={18} />
-          咔嚓咔嚓，快乐剪纸派对！
-        </div>
-        <div className="mascot-card" aria-hidden="true">
-          <span className="mascot-face">^_^</span>
-          <span className="mascot-cut">咔嚓</span>
-        </div>
-        <h1>咔嚓！来剪一局</h1>
-        <p>
-          折一折、剪一剪，展开看看剪出了啥？让小伙伴们猜猜看，猜得越快分越高～
-        </p>
-        <p className="lore-line">
-          你是一只软乎乎的剪纸团子，有一把可爱的小剪刀。今天和小伙伴们比一比，看谁剪出来的东西最让人猜不着，或者最让人一秒猜中！
-        </p>
-        <div className="hero-tags" aria-label="玩法标签">
-          <span>剪纸派对</span>
-          <span>实时乱猜</span>
-          <span>展开翻车</span>
-        </div>
-        <div className="hero-actions">
+        <div className="bubble-stage" aria-label="剪纸泡泡游乐场">
+          <button className="float-bubble title-bubble" onClick={popBubble}>
+            <span>折影猜意</span>
+            <small>软乎乎剪纸派对</small>
+          </button>
           <button
-            className="primary-button"
+            className="float-bubble start-bubble"
             onClick={() => {
-              sound.click();
+              popBubble();
               onStart();
             }}
           >
-            <Play size={20} />
-            开始{selectedRoom.name}
+            <Play size={28} />
+            <span>开剪</span>
+            <small>{selectedRoom.name}</small>
           </button>
-          <span className="room-pill">{selectedRoom.foldName}</span>
+          <button className="float-bubble tiny-bubble bubble-a" onClick={popBubble}>
+            折一折
+          </button>
+          <button className="float-bubble tiny-bubble bubble-b" onClick={popBubble}>
+            剪一剪
+          </button>
+          <button className="float-bubble tiny-bubble bubble-c" onClick={popBubble}>
+            猜一猜
+          </button>
+          <button className="float-bubble tiny-bubble bubble-d" onClick={popBubble}>
+            展开啦
+          </button>
+          <div className="micro-bubbles" key={burstKey} aria-hidden="true">
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+        </div>
+        <div className="hero-copy">
+          <div className="eyebrow">
+            <Scissors size={18} />
+            折一小角，剪两三刀，展开一个大惊喜
+          </div>
+          <h1>折影之中，藏着答案</h1>
+          <p>
+            选个房间，在折好的红纸上剪出你的题目。Bot 小伙伴会盯着展开的图案抢答，猜得越早得分越高～
+          </p>
+          <span className="room-pill">{selectedRoom.foldName} · {selectedRoom.feature}</span>
         </div>
       </div>
 
@@ -63,7 +85,7 @@ export function Lobby({ rooms, selectedRoom, players, onSelect, onStart }: Lobby
           >
             <span>{room.name}</span>
             <strong>{room.foldName}</strong>
-            <small>{room.difficulty}</small>
+            <small>{room.difficulty} · {room.feature}</small>
             <p>{room.description}</p>
           </button>
         ))}
@@ -72,7 +94,7 @@ export function Lobby({ rooms, selectedRoom, players, onSelect, onStart }: Lobby
       <aside className="score-panel">
         <div className="panel-title">
           <Users size={18} />
-          今天这桌
+          同桌小纸团
         </div>
         {players.map((player) => {
           const persona = botPersonas[player.name];

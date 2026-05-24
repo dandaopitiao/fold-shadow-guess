@@ -35,5 +35,6 @@ export type Room = {
   difficulty: string;
   description: string;
   color: string;
+  feature: string;
   questions: string[];
 };

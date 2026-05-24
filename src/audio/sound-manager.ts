@@ -184,6 +184,28 @@ class SoundManager {
     osc.stop(now + 0.06);
   }
 
+  /** 主页泡泡互动 */
+  bubble() {
+    if (!this.enabled) return;
+    const ctx = this.getCtx();
+    const now = ctx.currentTime;
+    [360, 520, 690].forEach((freq, index) => {
+      const osc = ctx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, now + index * 0.035);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.35, now + index * 0.035 + 0.16);
+      const gain = ctx.createGain();
+      const start = now + index * 0.035;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.055, start + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.18);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.2);
+    });
+  }
+
   /**
    * 倒计时滴答：由外部 timeLeft 驱动（与 App.tsx 的倒计时同步）。
    * 每次 timeLeft 变化时，App 调用此方法。SoundManager 自己不做倒计时。

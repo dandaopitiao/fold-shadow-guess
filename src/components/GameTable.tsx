@@ -31,9 +31,9 @@ export function GameTable({
   return (
     <section className="game-layout">
       <div className="round-header">
-        <span className="round-badge">第 {roundIndex} 刀</span>
+        <span className="round-badge">第 {roundIndex} 剪</span>
         <div>
-          <small>你的题目</small>
+          <small>你要剪的是</small>
           <strong>{answer}</strong>
         </div>
         <div className={`timer${timeLeft <= 5 ? " critical" : timeLeft <= 10 ? " urgent" : ""}`}>
@@ -49,14 +49,14 @@ export function GameTable({
         <div className="guess-box">
           <div className="panel-title">
             <Sparkles size={18} />
-            大家在猜
+            他们猜的是…
           </div>
           <div className="guess-list">
-            {guesses.length === 0 && <p className="empty">大家盯着这张纸，脑袋正在转圈。</p>}
+            {guesses.length === 0 && <p className="empty">小伙伴们歪着脑袋，盯着纸面努力脑补中…</p>}
             {guesses.map((guess) => (
               <div className={`guess ${guess.correct ? "correct" : ""}`} key={guess.id}>
                 <span>{guess.playerName}</span>
-                <strong>{guess.correct ? "猜中了" : guess.text}</strong>
+                <strong>{guess.correct ? "✨ 猜中啦" : guess.text}</strong>
               </div>
             ))}
           </div>
@@ -64,7 +64,7 @@ export function GameTable({
         <div className="score-panel compact">
           <div className="panel-title">
             <Medal size={18} />
-            今日手气
+            小手气榜
           </div>
           {players.map((player) => (
             <div className="player-row" key={player.id}>
@@ -82,7 +82,7 @@ export function GameTable({
           }}
         >
           <Check size={20} />
-          展开奖
+          展开看结果
         </button>
       </aside>
     </section>

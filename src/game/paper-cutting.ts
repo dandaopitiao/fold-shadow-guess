@@ -125,12 +125,31 @@ export function clampToFoldedArea(mode: FoldMode, point: Point): Point {
 function touchedRectEdge(mode: FoldMode, point: Point): string | null {
   if (mode !== "half" && mode !== "quarter") return null;
   const bounds = rectFoldBounds[mode];
-  const threshold = 14;
+  const threshold = 28;
   if (Math.abs(point.x - bounds.x1) < threshold) return "left";
   if (Math.abs(point.x - bounds.x2) < threshold) return "fold";
   if (Math.abs(point.y - bounds.y1) < threshold) return "top";
   if (Math.abs(point.y - bounds.y2) < threshold) return "bottom";
   return null;
+}
+
+function snapPointToRectEdge(mode: FoldMode, point: Point): Point {
+  if (mode !== "half" && mode !== "quarter") return point;
+  const bounds = rectFoldBounds[mode];
+  const edge = touchedRectEdge(mode, point);
+  if (!edge) return point;
+  if (edge === "left") return { ...point, x: bounds.x1 };
+  if (edge === "fold") return { ...point, x: bounds.x2 };
+  if (edge === "top") return { ...point, y: bounds.y1 };
+  return { ...point, y: bounds.y2 };
+}
+
+export function snapPathEdgeEndpoints(mode: FoldMode, points: Point[]) {
+  if (points.length < 2) return points;
+  const snapped = [...points];
+  snapped[0] = snapPointToRectEdge(mode, snapped[0]);
+  snapped[snapped.length - 1] = snapPointToRectEdge(mode, snapped[snapped.length - 1]);
+  return snapped;
 }
 
 export function isEdgeDropPath(mode: FoldMode, points: Point[]) {
@@ -157,6 +176,10 @@ export function smoothPoints(points: Point[], smoothLevel: number): Point[] {
   const half = Math.floor(windowSize / 2);
   const result: Point[] = [];
   for (let i = 0; i < points.length; i++) {
+    if (i === 0 || i === points.length - 1) {
+      result.push(points[i]);
+      continue;
+    }
     const start = Math.max(0, i - half);
     const end = Math.min(points.length - 1, i + half);
     result.push(avgPoint(points.slice(start, end + 1)));

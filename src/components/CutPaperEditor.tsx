@@ -17,6 +17,7 @@ import {
   distance,
   isClosedPath,
   isEdgeDropPath,
+  snapPathEdgeEndpoints,
   smoothPoints,
   simplifyPoints,
 } from "../game/paper-cutting";
@@ -36,10 +37,9 @@ type CutPaperEditorProps = {
 
 /** 根据难度获取平滑等级（越低越抖，越高越平滑带吸附） */
 function smoothLevelForRoom(room: Room): number {
-  if (room.id === "half") return 1;   // 热身局：轻平滑
+  if (room.id === "half") return 1;
   if (room.id === "quarter") return 1;
-  if (room.id === "sixth") return 2;  // 中级：中平滑
-  return 3;                           // 脑洞局：重平滑+简化
+  return 1;
 }
 
 export function CutPaperEditor({ room, paths, onPathsChange }: CutPaperEditorProps) {
@@ -53,7 +53,7 @@ export function CutPaperEditor({ room, paths, onPathsChange }: CutPaperEditorPro
 
   // 根据 room 难度决定平滑参数
   const smoothLv = smoothLevelForRoom(room);
-  const simplifyEps = room.id === "eighth" ? 2.5 : room.id === "sixth" ? 1.8 : 1.2;
+  const simplifyEps = 1.2;
 
   /** 屏幕坐标 → SVG 画布坐标（考虑 zoom level） */
   const getPoint = useCallback(
@@ -109,10 +109,9 @@ export function CutPaperEditor({ room, paths, onPathsChange }: CutPaperEditorPro
     if (rawDraft.current.length > 1) {
       // 完成一笔：平滑 + 简化（RDP）
       let finalPoints = smoothPoints(rawDraft.current, smoothLv);
-      // 高难度房间额外做 RDP 简化，让线条更干净
-      if (room.id === "eighth" || room.id === "sixth") {
-        finalPoints = simplifyPoints(finalPoints, simplifyEps);
-      }
+      finalPoints = snapPathEdgeEndpoints(room.id, finalPoints);
+      finalPoints = simplifyPoints(finalPoints, simplifyEps);
+      finalPoints = snapPathEdgeEndpoints(room.id, finalPoints);
 
       // 吸附模式：加宽闭合检测阈值，帮助手抖用户自动闭合
       const closed =
@@ -189,14 +188,14 @@ export function CutPaperEditor({ room, paths, onPathsChange }: CutPaperEditorPro
       <div className="canvas-card">
         <div className="canvas-label">
           <Scissors size={18} />
-          小纸片
+          折好的小纸片
         </div>
 
         {/* 缩放 & 吸附工具栏 */}
         <div className="zoom-toolbar">
           <button
             className="icon-button small"
-            title="放大 / 缩小"
+            title="放大镜：精修剪纸细节"
             onClick={cycleZoom}
           >
             {zoomLevel === 1 ? (
@@ -208,12 +207,12 @@ export function CutPaperEditor({ room, paths, onPathsChange }: CutPaperEditorPro
             )}
           </button>
           <span className="zoom-label">
-            {zoomLevel}x {zoomLevel > 1 ? "放大中" : ""}
+            {zoomLevel}x {zoomLevel > 1 ? "精修模式" : ""}
           </span>
           {snapOn ? (
             <button
               className="icon-button small active"
-              title="吸附开，点一下关"
+              title="吸附已开启：帮你自动闭合剪口"
               onClick={() => {
                 sound.click();
                 setSnapOn(false);
@@ -224,7 +223,7 @@ export function CutPaperEditor({ room, paths, onPathsChange }: CutPaperEditorPro
           ) : (
             <button
               className="icon-button small dim"
-              title="吸附关，点一下开"
+              title="吸附已关闭：点一下开启"
               onClick={() => {
                 sound.click();
                 setSnapOn(true);
@@ -244,7 +243,7 @@ export function CutPaperEditor({ room, paths, onPathsChange }: CutPaperEditorPro
           onPointerUp={pointerUp}
           onPointerLeave={pointerUp}
           role="img"
-          aria-label="剪纸绘制区域"
+          aria-label="在折纸上画出剪纸花纹"
         >
           <defs>
             <clipPath id={clipId}>
@@ -258,13 +257,13 @@ export function CutPaperEditor({ room, paths, onPathsChange }: CutPaperEditorPro
         </svg>
 
         <div className="tool-row">
-          <button className="icon-button" title="撤销" onClick={undoLast}>
+          <button className="icon-button" title="撤回上一刀" onClick={undoLast}>
             <RotateCcw size={18} />
           </button>
-          <button className="icon-button" title="清空" onClick={clearAll}>
+          <button className="icon-button" title="全部擦掉" onClick={clearAll}>
             <Eraser size={18} />
           </button>
-          <span>{paths.length} 刀</span>
+          <span>已剪 {paths.length} 刀</span>
         </div>
       </div>
 
@@ -272,13 +271,13 @@ export function CutPaperEditor({ room, paths, onPathsChange }: CutPaperEditorPro
       <div className="canvas-card preview">
         <div className="canvas-label">
           <Sparkles size={18} />
-          偷看展开 · {room.foldName}
+          展开预览 · {room.foldName}
         </div>
         <svg
           className="paper-svg"
           viewBox="0 0 320 320"
           role="img"
-          aria-label="剪纸展开预览"
+          aria-label="展开后的剪纸效果预览"
         >
           <UnfoldedPaperShape mode={room.id} />
           <ExpandedCuts mode={room.id} paths={previewPaths} />
