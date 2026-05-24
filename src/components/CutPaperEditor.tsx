@@ -35,6 +35,7 @@ type CutPaperEditorProps = {
   paths: CutPath[];
   onPathsChange: (paths: CutPath[]) => void;
   onFinish: () => void;
+  readOnly?: boolean;
 };
 
 /** 根据难度获取平滑等级（越低越抖，越高越平滑带吸附） */
@@ -44,7 +45,13 @@ function smoothLevelForRoom(room: Room): number {
   return 1;
 }
 
-export function CutPaperEditor({ room, paths, onPathsChange, onFinish }: CutPaperEditorProps) {
+export function CutPaperEditor({
+  room,
+  paths,
+  onPathsChange,
+  onFinish,
+  readOnly = false,
+}: CutPaperEditorProps) {
   const [draft, setDraft] = useState<Point[]>([]);
   const [zoomLevel, setZoomLevel] = useState(1); // 1x, 1.5x, 2x
   const [snapOn, setSnapOn] = useState(true);
@@ -83,6 +90,7 @@ export function CutPaperEditor({ room, paths, onPathsChange, onFinish }: CutPape
   };
 
   const pointerDown = (event: React.PointerEvent<SVGSVGElement>) => {
+    if (readOnly) return;
     drawing.current = true;
     rawDraft.current = [];
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -92,6 +100,7 @@ export function CutPaperEditor({ room, paths, onPathsChange, onFinish }: CutPape
   };
 
   const pointerMove = (event: React.PointerEvent<SVGSVGElement>) => {
+    if (readOnly) return;
     if (!drawing.current) return;
 
     const pt = getPoint(event);
@@ -101,6 +110,7 @@ export function CutPaperEditor({ room, paths, onPathsChange, onFinish }: CutPape
   };
 
   const pointerUp = () => {
+    if (readOnly) return;
     if (!drawing.current) return;
     drawing.current = false;
     if (frameRef.current !== null) {
@@ -190,7 +200,7 @@ export function CutPaperEditor({ room, paths, onPathsChange, onFinish }: CutPape
       <div className="canvas-card">
         <div className="canvas-label">
           <Scissors size={18} />
-          折好的小纸片
+          {readOnly ? "正在围观剪纸" : "折好的小纸片"}
         </div>
 
         {/* 缩放 & 吸附工具栏 */}
@@ -258,25 +268,31 @@ export function CutPaperEditor({ room, paths, onPathsChange, onFinish }: CutPape
           </g>
         </svg>
 
-        <div className="tool-row">
-          <button className="icon-button" title="撤回上一刀" onClick={undoLast}>
-            <RotateCcw size={18} />
-          </button>
-          <button className="icon-button" title="全部擦掉" onClick={clearAll}>
-            <Eraser size={18} />
-          </button>
-          <span>已剪 {paths.length} 刀</span>
-          <button
-            className="primary-button finish-cut-button"
-            onClick={() => {
-              sound.unfold();
-              onFinish();
-            }}
-          >
-            <Check size={18} />
-            完成了
-          </button>
-        </div>
+        {readOnly ? (
+          <div className="tool-row">
+            <span>房主已剪 {paths.length} 刀</span>
+          </div>
+        ) : (
+          <div className="tool-row">
+            <button className="icon-button" title="撤回上一刀" onClick={undoLast}>
+              <RotateCcw size={18} />
+            </button>
+            <button className="icon-button" title="全部擦掉" onClick={clearAll}>
+              <Eraser size={18} />
+            </button>
+            <span>已剪 {paths.length} 刀</span>
+            <button
+              className="primary-button finish-cut-button"
+              onClick={() => {
+                sound.unfold();
+                onFinish();
+              }}
+            >
+              <Check size={18} />
+              完成了
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 展开预览 */}

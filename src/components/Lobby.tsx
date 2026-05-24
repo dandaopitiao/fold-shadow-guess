@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Play, Scissors, Users } from "lucide-react";
+import { Copy, LogOut, Play, Scissors, Users, Wifi } from "lucide-react";
 import type { Player, Room } from "../types";
+import type { NetworkRole, NetworkStatus } from "../multiplayer/peer-room";
 import { sound } from "../audio/sound-manager";
 import { botPersonas } from "../data/constants";
 
@@ -10,10 +11,32 @@ type LobbyProps = {
   players: Player[];
   onSelect: (room: Room) => void;
   onStart: () => void;
+  multiplayer: {
+    role: NetworkRole;
+    status: NetworkStatus;
+    roomCode: string;
+    shareUrl: string;
+    error: string;
+    localName: string;
+    onCreate: (playerName: string) => void;
+    onJoin: (roomCode: string, playerName: string) => void;
+    onLeave: () => void;
+  };
 };
 
-export function Lobby({ rooms, selectedRoom, players, onSelect, onStart }: LobbyProps) {
+export function Lobby({
+  rooms,
+  selectedRoom,
+  players,
+  onSelect,
+  onStart,
+  multiplayer,
+}: LobbyProps) {
   const [burstKey, setBurstKey] = useState(0);
+  const [playerName, setPlayerName] = useState(multiplayer.localName || "你");
+  const [joinCode, setJoinCode] = useState(
+    () => new URLSearchParams(window.location.search).get("room") ?? ""
+  );
 
   const popBubble = () => {
     sound.bubble();
@@ -28,17 +51,6 @@ export function Lobby({ rooms, selectedRoom, players, onSelect, onStart }: Lobby
             <span>折影猜意</span>
             <small>软乎乎剪纸派对</small>
           </button>
-          <button
-            className="float-bubble start-bubble"
-            onClick={() => {
-              popBubble();
-              onStart();
-            }}
-          >
-            <Play size={28} />
-            <span>开剪</span>
-            <small>{selectedRoom.name}</small>
-          </button>
           <button className="float-bubble tiny-bubble bubble-a" onClick={popBubble}>
             折一折
           </button>
@@ -50,6 +62,9 @@ export function Lobby({ rooms, selectedRoom, players, onSelect, onStart }: Lobby
           </button>
           <button className="float-bubble tiny-bubble bubble-d" onClick={popBubble}>
             展开啦
+          </button>
+          <button className="float-bubble tiny-bubble bubble-e" onClick={popBubble}>
+            咕嘟
           </button>
           <div className="micro-bubbles" key={burstKey} aria-hidden="true">
             <span />
@@ -68,7 +83,80 @@ export function Lobby({ rooms, selectedRoom, players, onSelect, onStart }: Lobby
           <p>
             选个房间，在折好的红纸上剪出你的题目。Bot 小伙伴会盯着展开的图案抢答，猜得越早得分越高～
           </p>
-          <span className="room-pill">{selectedRoom.foldName} · {selectedRoom.feature}</span>
+          <div className="hero-start-row">
+            <button
+              className="primary-button hero-start-button"
+              onClick={() => {
+                sound.click();
+                onStart();
+              }}
+            >
+              <Play size={24} />
+              <span>开始游戏</span>
+              <small>{selectedRoom.name}</small>
+            </button>
+            <span className="room-pill">{selectedRoom.foldName} · {selectedRoom.feature}</span>
+          </div>
+          <div className="multiplayer-card">
+            <div className="panel-title">
+              <Wifi size={18} />
+              联机小房间
+            </div>
+            <div className="multiplayer-controls">
+              <input
+                value={playerName}
+                onChange={(event) => setPlayerName(event.target.value)}
+                placeholder="你的昵称"
+              />
+              <div className="room-code-row">
+                <input
+                  value={joinCode}
+                  onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
+                  placeholder="输入房间码"
+                />
+                <button
+                  className="ghost-button"
+                  onClick={() => multiplayer.onJoin(joinCode, playerName)}
+                >
+                  加入
+                </button>
+              </div>
+              <button
+                className="ghost-button multiplayer-create"
+                onClick={() => multiplayer.onCreate(playerName)}
+              >
+                创建联机房
+              </button>
+            </div>
+            {multiplayer.role !== "demo" && (
+              <div className="room-share">
+                <span>
+                  {multiplayer.status === "connecting"
+                    ? "正在连接..."
+                    : multiplayer.role === "host"
+                      ? `房间码 ${multiplayer.roomCode}`
+                      : `已加入 ${multiplayer.roomCode}`}
+                </span>
+                {multiplayer.shareUrl && (
+                  <button
+                    className="icon-button small"
+                    title="复制邀请链接"
+                    onClick={() => navigator.clipboard?.writeText(multiplayer.shareUrl)}
+                  >
+                    <Copy size={15} />
+                  </button>
+                )}
+                <button
+                  className="icon-button small"
+                  title="退出联机"
+                  onClick={multiplayer.onLeave}
+                >
+                  <LogOut size={15} />
+                </button>
+              </div>
+            )}
+            {multiplayer.error && <p className="multiplayer-error">{multiplayer.error}</p>}
+          </div>
         </div>
       </div>
 

@@ -1,5 +1,7 @@
-import { Check, Clock3, Medal, Sparkles } from "lucide-react";
+import { Check, Clock3, Medal, Send, Sparkles } from "lucide-react";
+import { useState } from "react";
 import type { CutPath, Guess, Player, Room } from "../types";
+import type { NetworkRole } from "../multiplayer/peer-room";
 import { sound } from "../audio/sound-manager";
 import { CutPaperEditor } from "./CutPaperEditor";
 
@@ -14,6 +16,9 @@ type GameTableProps = {
   roundIndex: number;
   onPathsChange: (paths: CutPath[]) => void;
   onFinish: () => void;
+  isDrawer: boolean;
+  networkRole: NetworkRole;
+  onGuessSubmit: (text: string) => void;
 };
 
 export function GameTable({
@@ -27,14 +32,27 @@ export function GameTable({
   roundIndex,
   onPathsChange,
   onFinish,
+  isDrawer,
+  networkRole,
+  onGuessSubmit,
 }: GameTableProps) {
+  const [guessText, setGuessText] = useState("");
+  const isGuest = networkRole === "guest";
+
+  const submitGuess = () => {
+    const text = guessText.trim();
+    if (!text) return;
+    onGuessSubmit(text);
+    setGuessText("");
+  };
+
   return (
     <section className="game-layout">
       <div className="round-header">
         <span className="round-badge">第 {roundIndex} 剪</span>
         <div>
-          <small>你要剪的是</small>
-          <strong>{answer}</strong>
+          <small>{isDrawer ? "你要剪的是" : "你正在猜"}</small>
+          <strong>{isDrawer ? answer : "看图抢答"}</strong>
         </div>
         <div className={`timer${timeLeft <= 5 ? " critical" : timeLeft <= 10 ? " urgent" : ""}`}>
           <Clock3 size={18} />
@@ -47,6 +65,7 @@ export function GameTable({
         paths={paths}
         onPathsChange={onPathsChange}
         onFinish={onFinish}
+        readOnly={!isDrawer}
       />
 
       <aside className="game-side">
@@ -65,6 +84,24 @@ export function GameTable({
               </div>
             ))}
           </div>
+          {isGuest && (
+            <form
+              className="guess-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                submitGuess();
+              }}
+            >
+              <input
+                value={guessText}
+                onChange={(event) => setGuessText(event.target.value)}
+                placeholder="输入你猜的东西"
+              />
+              <button className="icon-button small active" type="submit" title="发送答案">
+                <Send size={16} />
+              </button>
+            </form>
+          )}
         </div>
         <div className="score-panel compact">
           <div className="panel-title">
@@ -79,16 +116,18 @@ export function GameTable({
             </div>
           ))}
         </div>
-        <button
-          className="primary-button full"
-          onClick={() => {
-            sound.unfold();
-            onFinish();
-          }}
-        >
-          <Check size={20} />
-          直接展开
-        </button>
+        {isDrawer && (
+          <button
+            className="primary-button full"
+            onClick={() => {
+              sound.unfold();
+              onFinish();
+            }}
+          >
+            <Check size={20} />
+            直接展开
+          </button>
+        )}
       </aside>
     </section>
   );

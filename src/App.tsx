@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   MousePointer2,
   RotateCcw,
@@ -22,6 +22,7 @@ import { Lobby } from "./components/Lobby";
 import { Tutorial } from "./components/Tutorial";
 import { GameTable } from "./components/GameTable";
 import { ResultScreen } from "./components/ResultScreen";
+import { usePeerRoom, type PublicRoomSnapshot } from "./multiplayer/peer-room";
 
 export function App() {
   const [phase, setPhase] = useState<Phase>("lobby");
@@ -38,12 +39,96 @@ export function App() {
   const [muted, setMuted] = useState(false);
   const lastBotGuessSecond = useRef<number | null>(null);
   const prevTimeRef = useRef(ROUND_SECONDS);
+  const answerRef = useRef(answer);
+  const timeLeftRef = useRef(timeLeft);
+  const playersRef = useRef(players);
 
   const correctGuesses = guesses.filter((g) => g.correct);
   const drawerScore = useMemo(
     () => calcDrawerScore(correctGuesses),
     [correctGuesses]
   );
+
+  useEffect(() => {
+    answerRef.current = answer;
+    timeLeftRef.current = timeLeft;
+    playersRef.current = players;
+  }, [answer, timeLeft, players]);
+
+  const handleGuestJoin = useCallback((player: Player) => {
+    setPlayers((current) =>
+      current.some((item) => item.id === player.id) ? current : [...current, player]
+    );
+    setNotice(`${player.name} 加入房间，准备抢答。`);
+  }, []);
+
+  const submitHostGuess = useCallback((playerId: string, text: string) => {
+    const cleanText = text.trim();
+    if (!cleanText) return;
+    const player = playersRef.current.find((item) => item.id === playerId);
+    const playerName = player?.name ?? "来猜的";
+    const correct = cleanText === answerRef.current;
+
+    setGuesses((current) => {
+      if (correct && current.some((guess) => guess.playerId === playerId && guess.correct)) {
+        return current;
+      }
+      const nextOrder = current.filter((guess) => guess.correct).length + 1;
+      const guess: Guess = {
+        id: `${Date.now()}-${playerId}`,
+        playerId,
+        playerName,
+        text: cleanText,
+        correct,
+        timeLeft: timeLeftRef.current,
+        order: correct ? nextOrder : undefined,
+      };
+      if (correct) {
+        sound.correct();
+        setNotice(`${playerName} 猜中了，答案先藏一下。`);
+      } else {
+        sound.wrong();
+      }
+      return [...current, guess];
+    });
+  }, []);
+
+  const applySnapshot = useCallback((snapshot: PublicRoomSnapshot) => {
+    const room = rooms.find((item) => item.id === snapshot.roomId) ?? rooms[0];
+    setSelectedRoom(room);
+    setPhase(snapshot.phase);
+    setAnswer(snapshot.answer ?? "");
+    setTimeLeft(snapshot.timeLeft);
+    setPaths(snapshot.paths);
+    setGuesses(snapshot.guesses);
+    setPlayers(snapshot.players);
+    setRoundIndex(snapshot.roundIndex);
+    setNotice(snapshot.notice);
+  }, []);
+
+  const getSnapshot = useCallback<() => PublicRoomSnapshot>(() => ({
+    phase,
+    roomId: selectedRoom.id,
+    answer: phase === "result" ? answer : undefined,
+    timeLeft,
+    paths,
+    guesses,
+    players,
+    roundIndex,
+    notice,
+  }), [answer, guesses, notice, paths, phase, players, roundIndex, selectedRoom.id, timeLeft]);
+
+  const peerRoom = usePeerRoom({
+    onGuestJoin: handleGuestJoin,
+    onGuestGuess: submitHostGuess,
+    onSnapshot: applySnapshot,
+    getSnapshot,
+  });
+
+  useEffect(() => {
+    if (peerRoom.role !== "host" || peerRoom.status !== "hosting") return;
+    peerRoom.broadcastSnapshot(getSnapshot());
+  }, [getSnapshot, peerRoom]);
 
   // 静音切换
   useEffect(() => {
@@ -54,6 +139,7 @@ export function App() {
   const unlockAudio = () => sound.unlock();
 
   const startRound = (room = selectedRoom) => {
+    if (peerRoom.role === "guest") return;
     setSelectedRoom(room);
     setAnswer(pick(room.questions));
     setPaths([]);
@@ -75,6 +161,7 @@ export function App() {
   };
 
   const resetGame = () => {
+    if (peerRoom.role !== "demo") peerRoom.closeRoom();
     setPlayers(makePlayers());
     setRoundIndex(1);
     setPhase("lobby");
@@ -113,6 +200,7 @@ export function App() {
 
   // Bot 猜题模拟
   useEffect(() => {
+    if (peerRoom.role !== "demo") return;
     if (phase !== "draw") return;
     if (timeLeft >= ROUND_SECONDS - 3 || timeLeft % 5 !== 0) return;
     if (lastBotGuessSecond.current === timeLeft) return;
@@ -150,7 +238,26 @@ export function App() {
       };
       return [...current, guess];
     });
-  }, [phase, timeLeft, answer, paths.length]);
+  }, [phase, timeLeft, answer, paths.length, peerRoom.role]);
+
+  const createOnlineRoom = (playerName: string) => {
+    const hostPlayer: Player = {
+      id: "me",
+      name: playerName.trim() || "房主",
+      score: 0,
+      avatar: "^_^",
+    };
+    setPlayers([hostPlayer]);
+    setPhase("lobby");
+    setNotice("联机房开好后，点开始游戏就能开剪。");
+    peerRoom.createRoom(hostPlayer.name);
+  };
+
+  const joinOnlineRoom = (roomCode: string, playerName: string) => {
+    setPhase("lobby");
+    setNotice("正在加入朋友的剪纸房间。");
+    peerRoom.joinRoom(roomCode, playerName);
+  };
 
   return (
     <main className="app" onClick={unlockAudio}>
@@ -193,6 +300,17 @@ export function App() {
           onSelect={setSelectedRoom}
           onStart={() => startRound(selectedRoom)}
           players={players}
+          multiplayer={{
+            role: peerRoom.role,
+            status: peerRoom.status,
+            roomCode: peerRoom.roomCode,
+            shareUrl: peerRoom.shareUrl,
+            error: peerRoom.error,
+            localName: peerRoom.localPlayer.name,
+            onCreate: createOnlineRoom,
+            onJoin: joinOnlineRoom,
+            onLeave: peerRoom.closeRoom,
+          }}
         />
       )}
 
@@ -210,6 +328,9 @@ export function App() {
           roundIndex={roundIndex}
           onPathsChange={setPaths}
           onFinish={finishRound}
+          isDrawer={peerRoom.role !== "guest"}
+          networkRole={peerRoom.role}
+          onGuessSubmit={peerRoom.sendGuess}
         />
       )}
 
@@ -223,6 +344,7 @@ export function App() {
           drawerScore={drawerScore}
           onNext={nextRound}
           onLobby={() => setPhase("lobby")}
+          canStartNext={peerRoom.role !== "guest"}
         />
       )}
     </main>

@@ -43,6 +43,26 @@ button {
   cursor: pointer;
 }
 
+input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 18px;
+  outline: none;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px rgba(255, 210, 220, 0.46);
+  font-weight: 800;
+}
+
+input:focus {
+  border-color: var(--sky);
+  box-shadow:
+    inset 0 0 0 1px rgba(137, 200, 255, 0.52),
+    0 0 0 4px rgba(137, 200, 255, 0.2);
+}
+
 .app {
   position: relative;
   min-height: 100vh;
@@ -305,24 +325,8 @@ button {
 }
 
 .title-bubble small,
-.start-bubble small {
+.hero-start-button small {
   font-weight: 900;
-}
-
-.start-bubble {
-  right: 18px;
-  bottom: 20px;
-  width: 190px;
-  height: 190px;
-  background: radial-gradient(circle at 30% 24%, #ffffff, #ffe59a 38%, #ff805d 100%);
-  color: white;
-  text-shadow: 0 2px 0 rgba(112, 54, 28, 0.2);
-  font-weight: 1000;
-  animation-delay: -1.7s;
-}
-
-.start-bubble span {
-  font-size: 42px;
 }
 
 .tiny-bubble {
@@ -341,7 +345,7 @@ button {
 }
 
 .bubble-b {
-  right: 76px;
+  right: 84px;
   top: 26px;
   background: rgba(110, 226, 200, 0.48);
   animation-delay: -2.2s;
@@ -361,6 +365,15 @@ button {
   height: 72px;
   background: rgba(155, 140, 255, 0.38);
   animation-delay: -4s;
+}
+
+.bubble-e {
+  right: 42px;
+  bottom: 44px;
+  width: 112px;
+  height: 112px;
+  background: rgba(255, 214, 102, 0.46);
+  animation-delay: -1.7s;
 }
 
 .micro-bubbles {
@@ -389,6 +402,76 @@ button {
 .hero-copy {
   position: relative;
   z-index: 1;
+}
+
+.hero-start-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 24px;
+}
+
+.hero-start-button {
+  min-height: 64px;
+  padding: 0 28px;
+  box-shadow: 0 10px 0 #c62942, 0 20px 34px rgba(255, 79, 102, 0.3);
+  font-size: 20px;
+}
+
+.hero-start-button span,
+.hero-start-button small {
+  display: block;
+  line-height: 1;
+}
+
+.hero-start-button small {
+  opacity: 0.88;
+  font-size: 12px;
+}
+
+.multiplayer-card {
+  max-width: 560px;
+  margin-top: 18px;
+  padding: 16px;
+  border: 3px solid rgba(255, 255, 255, 0.82);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.58);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.62);
+}
+
+.multiplayer-controls {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.room-code-row,
+.room-share {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.room-share {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  background: rgba(255, 246, 214, 0.72);
+  color: var(--paper-dark);
+  font-weight: 1000;
+}
+
+.multiplayer-create {
+  width: 100%;
+}
+
+.multiplayer-error {
+  margin: 10px 0 0;
+  color: #b21d34;
+  font-weight: 900;
 }
 
 @keyframes bubble-drift {
@@ -973,6 +1056,13 @@ h1 {
   padding-right: 4px;
 }
 
+.guess-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: 12px;
+}
+
 .empty {
   color: #8f6270;
   line-height: 1.6;
@@ -1052,6 +1142,17 @@ h1 {
   margin: 6px 0;
   color: var(--paper-dark);
   font-size: 34px;
+  font-weight: 1000;
+}
+
+.waiting-note {
+  display: inline-flex;
+  align-items: center;
+  min-height: 46px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--paper-dark);
   font-weight: 1000;
 }
 

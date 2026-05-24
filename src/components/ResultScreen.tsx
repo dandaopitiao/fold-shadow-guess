@@ -12,6 +12,7 @@ type ResultScreenProps = {
   drawerScore: number;
   onNext: () => void;
   onLobby: () => void;
+  canStartNext?: boolean;
 };
 
 export function ResultScreen({
@@ -23,6 +24,7 @@ export function ResultScreen({
   drawerScore,
   onNext,
   onLobby,
+  canStartNext = true,
 }: ResultScreenProps) {
   const correct = guesses.filter((g) => g.correct);
   const ranked = [...players].sort((a, b) => b.score - a.score);
@@ -85,16 +87,20 @@ export function ResultScreen({
           >
             回大厅
           </button>
-          <button
-            className="primary-button"
-            onClick={() => {
-              sound.click();
-              onNext();
-            }}
-          >
-            <Play size={20} />
-            下一轮
-          </button>
+          {canStartNext ? (
+            <button
+              className="primary-button"
+              onClick={() => {
+                sound.click();
+                onNext();
+              }}
+            >
+              <Play size={20} />
+              下一轮
+            </button>
+          ) : (
+            <span className="waiting-note">等房主开下一轮</span>
+          )}
         </div>
       </div>
     </section>
