@@ -24,6 +24,13 @@ import { GameTable } from "./components/GameTable";
 import { ResultScreen } from "./components/ResultScreen";
 import { usePeerRoom, type PublicRoomSnapshot } from "./multiplayer/peer-room";
 
+function normalizeAnswer(value: string) {
+  return value
+    .trim()
+    .replace(/[，。！？、,.!?\s]/g, "")
+    .replace(/^小(?=房子|亭子|船|猫|兔子)/, "");
+}
+
 export function App() {
   const [phase, setPhase] = useState<Phase>("lobby");
   const [selectedRoom, setSelectedRoom] = useState<Room>(rooms[0]);
@@ -67,7 +74,7 @@ export function App() {
     if (!cleanText) return;
     const player = playersRef.current.find((item) => item.id === playerId);
     const playerName = player?.name ?? "来猜的";
-    const correct = cleanText === answerRef.current;
+    const correct = normalizeAnswer(cleanText) === normalizeAnswer(answerRef.current);
 
     setGuesses((current) => {
       if (correct && current.some((guess) => guess.playerId === playerId && guess.correct)) {
@@ -106,6 +113,15 @@ export function App() {
     setNotice(snapshot.notice);
   }, []);
 
+  const handleHostDisconnect = useCallback(() => {
+    setPhase("lobby");
+    setPaths([]);
+    setGuesses([]);
+    setPlayers(makePlayers());
+    setTimeLeft(ROUND_SECONDS);
+    setNotice("房间断开了，可以重新加入或自己开一局。");
+  }, []);
+
   const getSnapshot = useCallback<() => PublicRoomSnapshot>(() => ({
     phase,
     roomId: selectedRoom.id,
@@ -122,13 +138,14 @@ export function App() {
     onGuestJoin: handleGuestJoin,
     onGuestGuess: submitHostGuess,
     onSnapshot: applySnapshot,
+    onHostDisconnect: handleHostDisconnect,
     getSnapshot,
   });
 
   useEffect(() => {
     if (peerRoom.role !== "host" || peerRoom.status !== "hosting") return;
     peerRoom.broadcastSnapshot(getSnapshot());
-  }, [getSnapshot, peerRoom]);
+  }, [getSnapshot, peerRoom.role, peerRoom.status, peerRoom.broadcastSnapshot]);
 
   // 静音切换
   useEffect(() => {
@@ -153,6 +170,7 @@ export function App() {
   };
 
   const finishRound = () => {
+    if (peerRoom.role === "guest") return;
     sound.result();
     setPlayers((current) =>
       applyRoundScores(current, correctGuesses, drawerScore)
@@ -174,6 +192,7 @@ export function App() {
 
   // 倒计时：接近 10s 时逐秒加速（间隔递减），产生紧迫感
   useEffect(() => {
+    if (peerRoom.role === "guest") return;
     if (phase !== "draw") return;
     if (timeLeft <= 0) {
       finishRound();
@@ -187,7 +206,7 @@ export function App() {
       delay
     );
     return () => window.clearTimeout(timer);
-  }, [phase, timeLeft]);
+  }, [phase, timeLeft, peerRoom.role]);
 
   // 每次 timeLeft 变化时触发 tick 音效（仅在 draw 阶段）
   useEffect(() => {

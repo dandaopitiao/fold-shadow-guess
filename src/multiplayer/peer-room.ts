@@ -20,12 +20,14 @@ export type PublicRoomSnapshot = {
 type JoinMessage = { type: "join"; player: Player };
 type GuessMessage = { type: "guess"; playerId: string; text: string };
 type SnapshotMessage = { type: "snapshot"; snapshot: PublicRoomSnapshot };
-type RoomMessage = JoinMessage | GuessMessage | SnapshotMessage;
+type HostClosedMessage = { type: "host_closed" };
+type RoomMessage = JoinMessage | GuessMessage | SnapshotMessage | HostClosedMessage;
 
 type PeerRoomOptions = {
   onGuestJoin: (player: Player) => void;
   onGuestGuess: (playerId: string, text: string) => void;
   onSnapshot: (snapshot: PublicRoomSnapshot) => void;
+  onHostDisconnect: () => void;
   getSnapshot: () => PublicRoomSnapshot;
 };
 
@@ -58,6 +60,7 @@ export function usePeerRoom({
   onGuestJoin,
   onGuestGuess,
   onSnapshot,
+  onHostDisconnect,
   getSnapshot,
 }: PeerRoomOptions) {
   const [role, setRole] = useState<NetworkRole>("demo");
@@ -75,19 +78,40 @@ export function usePeerRoom({
   const peerRef = useRef<Peer | null>(null);
   const hostConnRef = useRef<DataConnection | null>(null);
   const guestConnsRef = useRef<DataConnection[]>([]);
-  const handlersRef = useRef({ onGuestJoin, onGuestGuess, onSnapshot, getSnapshot });
+  const handlersRef = useRef({
+    onGuestJoin,
+    onGuestGuess,
+    onSnapshot,
+    onHostDisconnect,
+    getSnapshot,
+  });
 
   useEffect(() => {
-    handlersRef.current = { onGuestJoin, onGuestGuess, onSnapshot, getSnapshot };
-  }, [onGuestJoin, onGuestGuess, onSnapshot, getSnapshot]);
+    handlersRef.current = {
+      onGuestJoin,
+      onGuestGuess,
+      onSnapshot,
+      onHostDisconnect,
+      getSnapshot,
+    };
+  }, [onGuestJoin, onGuestGuess, onSnapshot, onHostDisconnect, getSnapshot]);
 
   const closeRoom = useCallback(() => {
-    hostConnRef.current?.close();
-    guestConnsRef.current.forEach((conn) => conn.close());
+    const hostConn = hostConnRef.current;
+    const guestConns = guestConnsRef.current;
+    const peer = peerRef.current;
+
+    hostConn?.close();
+    guestConns.forEach((conn) => {
+      if (conn.open) conn.send({ type: "host_closed" } satisfies HostClosedMessage);
+    });
     hostConnRef.current = null;
     guestConnsRef.current = [];
-    peerRef.current?.destroy();
     peerRef.current = null;
+    window.setTimeout(() => {
+      guestConns.forEach((conn) => conn.close());
+      peer?.destroy();
+    }, 120);
     setRole("demo");
     setStatus("offline");
     setRoomCode("");
@@ -110,9 +134,16 @@ export function usePeerRoom({
       const message = raw as RoomMessage;
       if (message.type === "join") {
         handlersRef.current.onGuestJoin(message.player);
+        const snapshot = handlersRef.current.getSnapshot();
         conn.send({
           type: "snapshot",
-          snapshot: handlersRef.current.getSnapshot(),
+          snapshot: {
+            ...snapshot,
+            players: snapshot.players.some((player) => player.id === message.player.id)
+              ? snapshot.players
+              : [...snapshot.players, message.player],
+            notice: `${message.player.name} 加入房间，准备抢答。`,
+          },
         } satisfies SnapshotMessage);
       }
       if (message.type === "guess") {
@@ -180,10 +211,16 @@ export function usePeerRoom({
       conn.on("data", (raw) => {
         const message = raw as RoomMessage;
         if (message.type === "snapshot") handlersRef.current.onSnapshot(message.snapshot);
+        if (message.type === "host_closed") {
+          setStatus("offline");
+          setError("房主结束了房间。");
+          handlersRef.current.onHostDisconnect();
+        }
       });
       conn.on("close", () => {
         setStatus("offline");
         setError("房间连接断开了。");
+        handlersRef.current.onHostDisconnect();
       });
     });
     peer.on("error", (peerError) => {
