@@ -671,10 +671,11 @@ h1 {
 }
 
 .fold-lines line {
-  stroke: rgba(255, 255, 255, 0.68);
-  stroke-dasharray: 9 10;
+  stroke: rgba(104, 69, 84, 0.68);
+  stroke-dasharray: 8 8;
   stroke-linecap: round;
-  stroke-width: 3;
+  stroke-width: 4;
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.96)) drop-shadow(0 2px 0 rgba(255, 255, 255, 0.5));
 }
 
 .removed-piece {

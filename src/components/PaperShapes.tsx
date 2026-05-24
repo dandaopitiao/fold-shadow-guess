@@ -22,21 +22,21 @@ export function FoldedPaperShape({ mode }: { mode: FoldMode }) {
         <FoldedClipShape mode={mode} />
       </g>
       <g className="fold-lines">
-        {mode === "half" && <line x1="160" y1="52" x2="160" y2="268" />}
+        {mode === "half" && <line x1="160" y1="28" x2="160" y2="292" />}
         {mode === "quarter" && (
           <>
-            <line x1="160" y1="64" x2="160" y2="160" />
-            <line x1="64" y1="160" x2="160" y2="160" />
+            <line x1="160" y1="42" x2="160" y2="184" />
+            <line x1="42" y1="160" x2="184" y2="160" />
           </>
         )}
         {(mode === "sixth" || mode === "eighth") && (
           <>
-            <line x1="160" y1="160" x2="160" y2="38" />
+            <line x1="160" y1="160" x2="160" y2="22" />
             <line
               x1="160"
               y1="160"
-              x2={mode === "sixth" ? 266 : 246}
-              y2={mode === "sixth" ? 99 : 74}
+              x2={mode === "sixth" ? 282 : 258}
+              y2={mode === "sixth" ? 90 : 61}
             />
           </>
         )}

@@ -6,7 +6,11 @@ class SoundManager {
   private ctx: AudioContext | null = null;
   private enabled = true;
   private tickTimer: ReturnType<typeof setInterval> | null = null;
+  private musicTimer: ReturnType<typeof setInterval> | null = null;
+  private musicGain: GainNode | null = null;
+  private musicStep = 0;
   private remainingSeconds = 0;
+  private musicNotes = [523.25, 659.25, 783.99, 659.25, 587.33, 739.99, 880, 739.99];
 
   private getCtx(): AudioContext {
     if (!this.ctx) {
@@ -21,10 +25,83 @@ class SoundManager {
   /** 用户首次交互后解锁 Web Audio */
   unlock() {
     this.getCtx();
+    this.startMusic();
   }
 
   setEnabled(on: boolean) {
     this.enabled = on;
+    if (!on) {
+      this.stopMusic();
+    } else if (this.ctx) {
+      this.startMusic();
+    }
+  }
+
+  private ensureMusicBus(ctx: AudioContext) {
+    if (this.musicGain) return this.musicGain;
+    const gain = ctx.createGain();
+    gain.gain.value = 0.035;
+    gain.connect(ctx.destination);
+    this.musicGain = gain;
+    return gain;
+  }
+
+  private playMusicNote() {
+    if (!this.enabled || !this.ctx || !this.musicGain) return;
+    const ctx = this.ctx;
+    const now = ctx.currentTime;
+    const root = this.musicNotes[this.musicStep % this.musicNotes.length];
+    const harmony = root * (this.musicStep % 4 === 0 ? 1.5 : 2);
+    this.musicStep += 1;
+
+    [root, harmony].forEach((freq, index) => {
+      const osc = ctx.createOscillator();
+      osc.type = index === 0 ? "sine" : "triangle";
+      osc.frequency.value = freq;
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.value = 1350;
+
+      const gain = ctx.createGain();
+      const start = now + index * 0.025;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(index === 0 ? 0.32 : 0.12, start + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.75);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.musicGain!);
+      osc.start(start);
+      osc.stop(start + 0.8);
+    });
+  }
+
+  private startMusic() {
+    if (!this.enabled) return;
+    const ctx = this.getCtx();
+    this.ensureMusicBus(ctx);
+    if (this.musicTimer) return;
+    this.playMusicNote();
+    this.musicTimer = setInterval(() => this.playMusicNote(), 520);
+  }
+
+  private stopMusic() {
+    if (this.musicTimer) {
+      clearInterval(this.musicTimer);
+      this.musicTimer = null;
+    }
+    if (this.musicGain && this.ctx) {
+      const now = this.ctx.currentTime;
+      this.musicGain.gain.cancelScheduledValues(now);
+      this.musicGain.gain.setValueAtTime(this.musicGain.gain.value, now);
+      this.musicGain.gain.linearRampToValueAtTime(0.0001, now + 0.12);
+      const oldGain = this.musicGain;
+      window.setTimeout(() => {
+        oldGain.disconnect();
+      }, 160);
+      this.musicGain = null;
+    }
   }
 
   // ---- 音效 ----
@@ -243,6 +320,7 @@ class SoundManager {
   }
 
   dispose() {
+    this.stopMusic();
     if (this.tickTimer) {
       clearInterval(this.tickTimer);
       this.tickTimer = null;

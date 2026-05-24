@@ -49,7 +49,7 @@ export function CutPaperEditor({ room, paths, onPathsChange }: CutPaperEditorPro
   const svgRef = useRef<SVGSVGElement | null>(null);
   const drawing = useRef(false);
   const rawDraft = useRef<Point[]>([]); // 原始轨迹（未平滑）
-  const cutThrottle = useRef(0);       // 音效节流
+  const frameRef = useRef<number | null>(null);
 
   // 根据 room 难度决定平滑参数
   const smoothLv = smoothLevelForRoom(room);
@@ -70,6 +70,16 @@ export function CutPaperEditor({ room, paths, onPathsChange }: CutPaperEditorPro
     [room.id]
   );
 
+  const refreshDraftOnFrame = () => {
+    frameRef.current = null;
+    setDraft(smoothPoints(rawDraft.current, smoothLv));
+  };
+
+  const scheduleDraftRefresh = () => {
+    if (frameRef.current !== null) return;
+    frameRef.current = window.requestAnimationFrame(refreshDraftOnFrame);
+  };
+
   const pointerDown = (event: React.PointerEvent<SVGSVGElement>) => {
     drawing.current = true;
     rawDraft.current = [];
@@ -77,8 +87,6 @@ export function CutPaperEditor({ room, paths, onPathsChange }: CutPaperEditorPro
     const pt = getPoint(event);
     rawDraft.current.push(pt);
     setDraft([pt]);
-    sound.cut(); // 第一笔有音效
-    cutThrottle.current = Date.now();
   };
 
   const pointerMove = (event: React.PointerEvent<SVGSVGElement>) => {
@@ -87,21 +95,16 @@ export function CutPaperEditor({ room, paths, onPathsChange }: CutPaperEditorPro
     const pt = getPoint(event);
     rawDraft.current.push(pt);
 
-    // 音效节流：每 60ms 最多触发一次剪纸音效，避免噪音轰炸
-    const now = Date.now();
-    if (now - cutThrottle.current > 60) {
-      sound.cut();
-      cutThrottle.current = now;
-    }
-
-    // 实时轨迹：对原始点做平滑后显示
-    const smoothed = smoothPoints(rawDraft.current, smoothLv);
-    setDraft(smoothed);
+    scheduleDraftRefresh();
   };
 
   const pointerUp = () => {
     if (!drawing.current) return;
     drawing.current = false;
+    if (frameRef.current !== null) {
+      window.cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+    }
 
     if (rawDraft.current.length > 1) {
       // 完成一笔：平滑 + 简化（RDP）
@@ -134,18 +137,17 @@ export function CutPaperEditor({ room, paths, onPathsChange }: CutPaperEditorPro
     rawDraft.current = [];
   };
 
-  // 预览状态（含当前草稿）
-  const draftClosed = draft.length > 1 && isClosedPath(draft);
+  // 预览状态（含当前草稿）。绘制中不提前切换成镂空面，避免闭合瞬间卡顿和视觉跳变。
   const previewPaths =
     draft.length > 1
       ? [
           ...paths,
           {
             id: "draft",
-            points: draftClosed ? closePathPoints(draft) : draft,
+            points: draft,
             width: 10,
-            closed: draftClosed,
-            edgeDrop: !draftClosed && isEdgeDropPath(room.id, draft),
+            closed: false,
+            edgeDrop: false,
           },
         ]
       : paths;
