@@ -49,6 +49,12 @@ export function App() {
   const answerRef = useRef(answer);
   const timeLeftRef = useRef(timeLeft);
   const playersRef = useRef(players);
+  const recentAnswersRef = useRef<Record<Room["id"], string[]>>({
+    half: [],
+    quarter: [],
+    sixth: [],
+    eighth: [],
+  });
 
   const correctGuesses = guesses.filter((g) => g.correct);
   const drawerScore = useMemo(
@@ -155,16 +161,24 @@ export function App() {
   // 用户首次交互解锁 AudioContext
   const unlockAudio = () => sound.unlock();
 
+  const pickQuestion = (room: Room) => {
+    const recent = recentAnswersRef.current[room.id] ?? [];
+    const candidatePool = room.questions.filter((item) => !recent.includes(item));
+    const next = pick(candidatePool.length ? candidatePool : room.questions);
+    recentAnswersRef.current[room.id] = [next, ...recent].slice(0, Math.min(10, room.questions.length - 1));
+    return next;
+  };
+
   const startRound = (room = selectedRoom) => {
     if (peerRoom.role === "guest") return;
     setSelectedRoom(room);
-    setAnswer(pick(room.questions));
+    setAnswer(pickQuestion(room));
     setPaths([]);
     setGuesses([]);
     setTimeLeft(ROUND_SECONDS);
     prevTimeRef.current = ROUND_SECONDS;
     lastBotGuessSecond.current = null;
-    setNotice("簌簌—— 纸已折好，快快下刀！");
+    setNotice("纸已经折好啦，剪完就点“完成了”展开给大家猜！");
     sound.start();
     setPhase("draw");
   };
@@ -183,6 +197,7 @@ export function App() {
     setPlayers(makePlayers());
     setRoundIndex(1);
     setPhase("lobby");
+    setNotice("回到大厅啦，选个难度继续开剪。");
   };
 
   const nextRound = () => {
@@ -259,7 +274,7 @@ export function App() {
     });
   }, [phase, timeLeft, answer, paths.length, peerRoom.role]);
 
-  const createOnlineRoom = (playerName: string) => {
+  const createOnlineRoom = (playerName: string, roomCode?: string) => {
     const hostPlayer: Player = {
       id: "me",
       name: playerName.trim() || "房主",
@@ -268,8 +283,8 @@ export function App() {
     };
     setPlayers([hostPlayer]);
     setPhase("lobby");
-    setNotice("联机房开好后，点开始游戏就能开剪。");
-    peerRoom.createRoom(hostPlayer.name);
+    setNotice("联机房开好后，把房间码发给朋友，点开始游戏就能开剪。");
+    peerRoom.createRoom(hostPlayer.name, roomCode);
   };
 
   const joinOnlineRoom = (roomCode: string, playerName: string) => {
@@ -289,7 +304,7 @@ export function App() {
         >
           <span className="brand-mark">咔</span>
           <span>
-            <strong>折影猜意</strong>
+            <strong>谁是大裁谜</strong>
             <small>软乎乎剪纸派对</small>
           </span>
         </button>
@@ -362,7 +377,7 @@ export function App() {
           players={players}
           drawerScore={drawerScore}
           onNext={nextRound}
-          onLobby={() => setPhase("lobby")}
+          onLobby={resetGame}
           canStartNext={peerRoom.role !== "guest"}
         />
       )}

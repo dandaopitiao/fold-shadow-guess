@@ -1,4 +1,4 @@
-import { Play, Trophy } from "lucide-react";
+import { LogOut, Play, Trophy } from "lucide-react";
 import type { CutPath, Guess, Player, Room } from "../types";
 import { sound } from "../audio/sound-manager";
 import { UnfoldedPaperShape, ExpandedCuts } from "./PaperShapes";
@@ -28,13 +28,14 @@ export function ResultScreen({
 }: ResultScreenProps) {
   const correct = guesses.filter((g) => g.correct);
   const ranked = [...players].sort((a, b) => b.score - a.score);
+  const winner = ranked[0];
 
   return (
     <section className="result-layout">
       <div className="result-art">
         <span className="eyebrow">
           <Trophy size={18} />
-          嗒嗒——开奖时刻
+          本轮结算
         </span>
         <h1>{answer}</h1>
         <svg
@@ -48,6 +49,11 @@ export function ResultScreen({
         </svg>
       </div>
       <div className="result-info">
+        <div className="winner-card">
+          <small>本局的大裁谜是：</small>
+          <strong>{winner?.name ?? "还没分出胜负"}</strong>
+          <span>{winner ? `${winner.score} 分，暂时领跑全场` : "下一局继续剪出名场面"}</span>
+        </div>
         <div className="stat-card">
           <small>剪子手加分</small>
           <strong>+{drawerScore}</strong>
@@ -78,15 +84,6 @@ export function ResultScreen({
           ))}
         </div>
         <div className="result-actions">
-          <button
-            className="ghost-button"
-            onClick={() => {
-              sound.click();
-              onLobby();
-            }}
-          >
-            回大厅
-          </button>
           {canStartNext ? (
             <button
               className="primary-button"
@@ -96,11 +93,21 @@ export function ResultScreen({
               }}
             >
               <Play size={20} />
-              下一轮
+              下一局
             </button>
           ) : (
-            <span className="waiting-note">等房主开下一轮</span>
+            <span className="waiting-note">等房主开下一局</span>
           )}
+          <button
+            className="ghost-button"
+            onClick={() => {
+              sound.click();
+              onLobby();
+            }}
+          >
+            <LogOut size={18} />
+            结束
+          </button>
         </div>
       </div>
     </section>

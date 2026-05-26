@@ -271,6 +271,11 @@ input:focus {
   margin: -8px 0 22px;
   border-radius: 38px;
   overflow: hidden;
+  background:
+    radial-gradient(circle at 20% 28%, rgba(255, 255, 255, 0.72), transparent 18%),
+    radial-gradient(circle at 78% 72%, rgba(137, 200, 255, 0.2), transparent 24%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.38), rgba(196, 233, 255, 0.24));
+  touch-action: manipulation;
 }
 
 .float-bubble {
@@ -285,7 +290,8 @@ input:focus {
     inset 10px 12px 20px rgba(255, 255, 255, 0.42),
     0 16px 32px rgba(132, 60, 75, 0.18);
   backdrop-filter: blur(12px);
-  animation: bubble-drift 5.8s ease-in-out infinite alternate;
+  transform: translate(-50%, -50%);
+  will-change: left, top, transform;
 }
 
 .float-bubble::after {
@@ -300,19 +306,15 @@ input:focus {
 }
 
 .float-bubble:hover {
-  transform: translateY(-4px) scale(1.03);
+  transform: translate(-50%, -50%) scale(1.04);
   filter: saturate(1.08);
 }
 
 .float-bubble:active {
-  transform: scale(0.97);
+  transform: translate(-50%, -50%) scale(0.96);
 }
 
 .title-bubble {
-  left: 22px;
-  top: 24px;
-  width: 220px;
-  height: 220px;
   background: radial-gradient(circle at 30% 24%, #ffffff, #ffcfda 36%, #ff5b73 100%);
   color: var(--paper-dark);
   text-shadow: 0 2px 0 rgba(255, 255, 255, 0.46);
@@ -320,8 +322,9 @@ input:focus {
 }
 
 .title-bubble span {
-  font-size: 46px;
-  line-height: 0.94;
+  max-width: 88%;
+  font-size: 34px;
+  line-height: 1.02;
 }
 
 .title-bubble small,
@@ -330,56 +333,13 @@ input:focus {
 }
 
 .tiny-bubble {
-  width: 86px;
-  height: 86px;
   background: rgba(255, 255, 255, 0.64);
   color: var(--paper-dark);
   font-weight: 1000;
 }
 
-.bubble-a {
-  left: 258px;
-  top: 30px;
-  background: rgba(137, 200, 255, 0.52);
-  animation-delay: -0.8s;
-}
-
-.bubble-b {
-  right: 84px;
-  top: 26px;
-  background: rgba(110, 226, 200, 0.48);
-  animation-delay: -2.2s;
-}
-
-.bubble-c {
-  left: 218px;
-  bottom: 28px;
-  background: rgba(255, 214, 102, 0.62);
-  animation-delay: -3.1s;
-}
-
-.bubble-d {
-  left: 92px;
-  bottom: 8px;
-  width: 72px;
-  height: 72px;
-  background: rgba(155, 140, 255, 0.38);
-  animation-delay: -4s;
-}
-
-.bubble-e {
-  right: 42px;
-  bottom: 44px;
-  width: 112px;
-  height: 112px;
-  background: rgba(255, 214, 102, 0.46);
-  animation-delay: -1.7s;
-}
-
 .micro-bubbles {
   position: absolute;
-  left: 50%;
-  top: 50%;
   pointer-events: none;
 }
 
@@ -454,6 +414,19 @@ input:focus {
   align-items: center;
 }
 
+.code-hint {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.58);
+  color: #8f6270;
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
 .room-share {
   grid-template-columns: minmax(0, 1fr) auto auto;
   margin-top: 12px;
@@ -472,11 +445,6 @@ input:focus {
   margin: 10px 0 0;
   color: #b21d34;
   font-weight: 900;
-}
-
-@keyframes bubble-drift {
-  from { translate: -8px -6px; }
-  to { translate: 8px 6px; }
 }
 
 @keyframes bubble-pop {
@@ -576,6 +544,8 @@ h1 {
   line-height: 0.95;
   letter-spacing: 0;
   font-weight: 1000;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .hero-panel p {
@@ -1124,6 +1094,7 @@ h1 {
   gap: 14px;
 }
 
+.winner-card,
 .stat-card,
 .ranking {
   padding: 16px;
@@ -1132,10 +1103,28 @@ h1 {
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.92), 0 12px 22px rgba(132, 60, 75, 0.12);
 }
 
+.winner-card {
+  background:
+    radial-gradient(circle at 88% 18%, rgba(255, 255, 255, 0.72), transparent 18%),
+    linear-gradient(145deg, #fff0b9, #ff8fa3);
+  color: var(--ink);
+  box-shadow: 0 10px 0 rgba(196, 41, 66, 0.14), 0 22px 36px rgba(255, 79, 102, 0.18);
+}
+
+.winner-card small,
+.winner-card strong,
+.winner-card span,
 .stat-card small,
 .stat-card strong,
 .stat-card span {
   display: block;
+}
+
+.winner-card strong {
+  margin: 6px 0;
+  color: var(--paper-dark);
+  font-size: 38px;
+  font-weight: 1000;
 }
 
 .stat-card strong {
@@ -1175,7 +1164,8 @@ h1 {
 
 @media (max-width: 760px) {
   .app {
-    padding: 14px;
+    padding: 12px;
+    overflow-x: hidden;
   }
 
   .topbar,
@@ -1196,7 +1186,118 @@ h1 {
     grid-template-columns: 1fr;
   }
 
+  .brand strong {
+    font-size: 21px;
+  }
+
+  .brand-mark {
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+  }
+
+  .topbar-actions {
+    width: 100%;
+    max-width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .topbar-actions .ghost-button {
+    width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0 8px;
+    font-size: 14px;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .hero-panel,
+  .room-list,
+  .score-panel,
+  .tutorial,
+  .round-header,
+  .canvas-card,
+  .game-side,
+  .result-art,
+  .result-info {
+    border-radius: 22px;
+  }
+
+  .hero-panel {
+    padding: 18px;
+  }
+
+  .bubble-stage {
+    height: 250px;
+    margin-bottom: 16px;
+    border-radius: 28px;
+  }
+
+  .title-bubble span {
+    font-size: 28px;
+  }
+
+  .tiny-bubble {
+    font-size: 13px;
+  }
+
   h1 {
-    font-size: 52px;
+    font-size: 46px;
+  }
+
+  .hero-panel p {
+    font-size: 16px;
+    line-height: 1.75;
+  }
+
+  .hero-start-button {
+    width: 100%;
+    min-height: 58px;
+  }
+
+  .multiplayer-card {
+    margin-top: 16px;
+    padding: 14px;
+    border-radius: 22px;
+  }
+
+  .room-code-row,
+  .room-share {
+    grid-template-columns: 1fr;
+  }
+
+  .code-hint {
+    justify-content: center;
+    min-height: 34px;
+  }
+
+  .room-share {
+    grid-template-columns: 1fr auto auto;
+  }
+
+  .game-layout {
+    height: auto;
+    min-height: 0;
+  }
+
+  .round-header strong {
+    font-size: 34px;
+    text-align: left;
+  }
+
+  .game-side {
+    max-height: none;
+  }
+
+  .result-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .result-actions .primary-button,
+  .result-actions .ghost-button {
+    width: 100%;
   }
 }

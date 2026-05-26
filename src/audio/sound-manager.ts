@@ -1,5 +1,5 @@
 /**
- * 折影猜意 声音管理器
+ * 谁是大裁谜 声音管理器
  * 使用 Web Audio API 合成所有音效，无需加载外部音频文件。
  */
 class SoundManager {

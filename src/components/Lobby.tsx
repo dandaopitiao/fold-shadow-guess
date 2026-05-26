@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { type PointerEvent, type CSSProperties, useEffect, useRef, useState } from "react";
 import { Copy, LogOut, Play, Scissors, Users, Wifi } from "lucide-react";
 import type { Player, Room } from "../types";
 import type { NetworkRole, NetworkStatus } from "../multiplayer/peer-room";
+import { sanitizeRoomCode } from "../multiplayer/peer-room";
 import { sound } from "../audio/sound-manager";
 import { botPersonas } from "../data/constants";
 
@@ -18,11 +19,63 @@ type LobbyProps = {
     shareUrl: string;
     error: string;
     localName: string;
-    onCreate: (playerName: string) => void;
+    onCreate: (playerName: string, roomCode?: string) => void;
     onJoin: (roomCode: string, playerName: string) => void;
     onLeave: () => void;
   };
 };
+
+type Bubble = {
+  id: string;
+  label: string;
+  sub?: string;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  r: number;
+  className: string;
+  color: string;
+};
+
+const bubbleSeeds: Omit<Bubble, "x" | "y" | "vx" | "vy">[] = [
+  { id: "title", label: "谁是大裁谜", sub: "软乎乎剪纸派对", r: 118, className: "title-bubble", color: "radial-gradient(circle at 30% 24%, #ffffff, #ffcfda 36%, #ff5b73 100%)" },
+  { id: "fold", label: "折一折", r: 50, className: "tiny-bubble", color: "rgba(137, 200, 255, 0.54)" },
+  { id: "cut", label: "剪一剪", r: 56, className: "tiny-bubble", color: "rgba(110, 226, 200, 0.52)" },
+  { id: "guess", label: "猜一猜", r: 52, className: "tiny-bubble", color: "rgba(255, 214, 102, 0.62)" },
+  { id: "open", label: "展开啦", r: 42, className: "tiny-bubble", color: "rgba(155, 140, 255, 0.42)" },
+  { id: "gudu", label: "咕嘟", r: 44, className: "tiny-bubble", color: "rgba(255, 173, 143, 0.5)" },
+];
+
+function makeBubbles(width: number, height: number): Bubble[] {
+  const compact = width < 540;
+  const spots = compact ? [
+    [0.26, 0.48],
+    [0.76, 0.23],
+    [0.79, 0.52],
+    [0.57, 0.21],
+    [0.54, 0.78],
+    [0.82, 0.8],
+  ] : [
+    [0.2, 0.46],
+    [0.43, 0.24],
+    [0.78, 0.25],
+    [0.5, 0.72],
+    [0.26, 0.82],
+    [0.82, 0.72],
+  ];
+  return bubbleSeeds.map((seed, index) => {
+    const radius = seed.r * (compact ? (seed.id === "title" ? 0.76 : 0.68) : 1);
+    return {
+      ...seed,
+      r: radius,
+      x: Math.max(radius + 10, Math.min(width - radius - 10, width * spots[index][0])),
+      y: Math.max(radius + 10, Math.min(height - radius - 10, height * spots[index][1])),
+      vx: (index % 2 === 0 ? 0.42 : -0.38) * (index === 0 ? 0.45 : 1),
+      vy: (index % 3 === 0 ? 0.3 : -0.34) * (index === 0 ? 0.45 : 1),
+    };
+  });
+}
 
 export function Lobby({
   rooms,
@@ -37,36 +90,139 @@ export function Lobby({
   const [joinCode, setJoinCode] = useState(
     () => new URLSearchParams(window.location.search).get("room") ?? ""
   );
+  const [createCode, setCreateCode] = useState("");
+  const [bubbles, setBubbles] = useState<Bubble[]>([]);
+  const [burstPoint, setBurstPoint] = useState({ x: 0, y: 0 });
+  const stageRef = useRef<HTMLDivElement | null>(null);
 
-  const popBubble = () => {
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const reset = () => {
+      const rect = stage.getBoundingClientRect();
+      setBubbles(makeBubbles(rect.width, rect.height));
+    };
+    reset();
+    window.addEventListener("resize", reset);
+    return () => window.removeEventListener("resize", reset);
+  }, []);
+
+  useEffect(() => {
+    let frame = 0;
+    const tick = () => {
+      const stage = stageRef.current;
+      if (!stage) return;
+      const rect = stage.getBoundingClientRect();
+      setBubbles((current) => {
+        const next = current.map((bubble) => {
+          let x = bubble.x + bubble.vx;
+          let y = bubble.y + bubble.vy;
+          let vx = bubble.vx;
+          let vy = bubble.vy;
+          if (x < bubble.r + 8 || x > rect.width - bubble.r - 8) {
+            vx *= -1;
+            x = Math.max(bubble.r + 8, Math.min(rect.width - bubble.r - 8, x));
+          }
+          if (y < bubble.r + 8 || y > rect.height - bubble.r - 8) {
+            vy *= -1;
+            y = Math.max(bubble.r + 8, Math.min(rect.height - bubble.r - 8, y));
+          }
+          return { ...bubble, x, y, vx: vx * 0.999, vy: vy * 0.999 };
+        });
+
+        for (let i = 0; i < next.length; i += 1) {
+          for (let j = i + 1; j < next.length; j += 1) {
+            const a = next[i];
+            const b = next[j];
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const distance = Math.hypot(dx, dy) || 1;
+            const minDistance = a.r + b.r + 8;
+            if (distance < minDistance) {
+              const push = (minDistance - distance) / 2;
+              const nx = dx / distance;
+              const ny = dy / distance;
+              a.x -= nx * push;
+              a.y -= ny * push;
+              b.x += nx * push;
+              b.y += ny * push;
+              const avx = a.vx;
+              const avy = a.vy;
+              a.vx = b.vx * 0.92;
+              a.vy = b.vy * 0.92;
+              b.vx = avx * 0.92;
+              b.vy = avy * 0.92;
+            }
+          }
+        }
+        next.forEach((bubble) => {
+          bubble.x = Math.max(bubble.r + 8, Math.min(rect.width - bubble.r - 8, bubble.x));
+          bubble.y = Math.max(bubble.r + 8, Math.min(rect.height - bubble.r - 8, bubble.y));
+        });
+        return next;
+      });
+      frame = window.requestAnimationFrame(tick);
+    };
+    frame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  const rippleBubbles = (event: PointerEvent<HTMLDivElement>) => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const rect = stage.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
     sound.bubble();
+    setBurstPoint({ x, y });
     setBurstKey((value) => value + 1);
+    setBubbles((current) =>
+      current.map((bubble) => {
+        const dx = bubble.x - x;
+        const dy = bubble.y - y;
+        const distance = Math.max(36, Math.hypot(dx, dy));
+        const force = Math.min(3.8, 210 / distance);
+        return {
+          ...bubble,
+          vx: bubble.vx + (dx / distance) * force,
+          vy: bubble.vy + (dy / distance) * force,
+        };
+      })
+    );
   };
 
   return (
     <section className="lobby-grid">
       <div className="hero-panel">
-        <div className="bubble-stage" aria-label="剪纸泡泡游乐场">
-          <button className="float-bubble title-bubble" onClick={popBubble}>
-            <span>折影猜意</span>
-            <small>软乎乎剪纸派对</small>
-          </button>
-          <button className="float-bubble tiny-bubble bubble-a" onClick={popBubble}>
-            折一折
-          </button>
-          <button className="float-bubble tiny-bubble bubble-b" onClick={popBubble}>
-            剪一剪
-          </button>
-          <button className="float-bubble tiny-bubble bubble-c" onClick={popBubble}>
-            猜一猜
-          </button>
-          <button className="float-bubble tiny-bubble bubble-d" onClick={popBubble}>
-            展开啦
-          </button>
-          <button className="float-bubble tiny-bubble bubble-e" onClick={popBubble}>
-            咕嘟
-          </button>
-          <div className="micro-bubbles" key={burstKey} aria-hidden="true">
+        <div
+          className="bubble-stage"
+          aria-label="剪纸泡泡游乐场"
+          ref={stageRef}
+          onPointerDown={rippleBubbles}
+        >
+          {bubbles.map((bubble) => (
+            <button
+              className={`float-bubble ${bubble.className}`}
+              key={bubble.id}
+              style={{
+                width: bubble.r * 2,
+                height: bubble.r * 2,
+                left: bubble.x,
+                top: bubble.y,
+                background: bubble.color,
+              } as CSSProperties}
+              type="button"
+            >
+              <span>{bubble.label}</span>
+              {bubble.sub && <small>{bubble.sub}</small>}
+            </button>
+          ))}
+          <div
+            className="micro-bubbles"
+            key={burstKey}
+            aria-hidden="true"
+            style={{ left: burstPoint.x, top: burstPoint.y } as CSSProperties}
+          >
             <span />
             <span />
             <span />
@@ -79,9 +235,9 @@ export function Lobby({
             <Scissors size={18} />
             折一小角，剪两三刀，展开一个大惊喜
           </div>
-          <h1>折影之中，藏着答案</h1>
+          <h1>展开开猜</h1>
           <p>
-            选个房间，在折好的红纸上剪出你的题目。Bot 小伙伴会盯着展开的图案抢答，猜得越早得分越高～
+            选个房间，在折好的红纸上剪出你的题目。其他小伙伴可盯着展开的图案抢答，猜得越早得分越高～
           </p>
           <div className="hero-start-row">
             <button
@@ -107,12 +263,15 @@ export function Lobby({
                 value={playerName}
                 onChange={(event) => setPlayerName(event.target.value)}
                 placeholder="你的昵称"
+                autoComplete="nickname"
               />
               <div className="room-code-row">
                 <input
                   value={joinCode}
-                  onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
+                  onChange={(event) => setJoinCode(sanitizeRoomCode(event.target.value))}
                   placeholder="输入房间码"
+                  inputMode="text"
+                  maxLength={6}
                 />
                 <button
                   className="ghost-button"
@@ -121,9 +280,19 @@ export function Lobby({
                   加入
                 </button>
               </div>
+              <div className="room-code-row create-code-row">
+                <input
+                  value={createCode}
+                  onChange={(event) => setCreateCode(sanitizeRoomCode(event.target.value))}
+                  placeholder="自定房间码，可留空"
+                  inputMode="text"
+                  maxLength={6}
+                />
+                <span className="code-hint">留空自动生成</span>
+              </div>
               <button
                 className="ghost-button multiplayer-create"
-                onClick={() => multiplayer.onCreate(playerName)}
+                onClick={() => multiplayer.onCreate(playerName, createCode)}
               >
                 创建联机房
               </button>

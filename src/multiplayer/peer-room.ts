@@ -38,22 +38,41 @@ const peerOptions = {
   secure: true,
 };
 
+const ROOM_PREFIX = "big-cut-riddle";
+
+export function sanitizeRoomCode(value: string) {
+  return value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+}
+
 function makeRoomCode() {
   return Math.random().toString(36).slice(2, 7).toUpperCase();
 }
 
 function roomPeerId(roomCode: string) {
-  return `fold-shadow-${roomCode.toLowerCase()}`;
+  return `${ROOM_PREFIX}-${roomCode.toLowerCase()}`;
 }
 
 function guestPeerId() {
-  return `fold-shadow-guest-${Math.random().toString(36).slice(2, 10)}`;
+  return `${ROOM_PREFIX}-guest-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function shareUrlFor(roomCode: string) {
   const url = new URL(window.location.href);
   url.searchParams.set("room", roomCode);
   return url.toString();
+}
+
+function friendlyPeerError(message = "") {
+  if (message.includes("Could not connect to peer")) {
+    return "没有找到这个房间。请确认房主已经点了“创建联机房”，房间页还开着，房间码也没有输错。";
+  }
+  if (message.includes("is taken") || message.includes("unavailable-id")) {
+    return "这个房间码正在被使用，换一个房间码再开房吧。";
+  }
+  if (message.includes("Lost connection") || message.includes("network")) {
+    return "联机服务器连接不稳定，刷新页面后再试一次。";
+  }
+  return message || "联机失败了，检查一下房间码或网络后再试。";
 }
 
 export function usePeerRoom({
@@ -155,9 +174,9 @@ export function usePeerRoom({
     });
   }, []);
 
-  const createRoom = useCallback((playerName: string) => {
+  const createRoom = useCallback((playerName: string, requestedCode = "") => {
     closeRoom();
-    const nextCode = makeRoomCode();
+    const nextCode = sanitizeRoomCode(requestedCode) || makeRoomCode();
     const player = { id: "me", name: playerName.trim() || "房主", score: 0, avatar: "^_^" };
     setLocalPlayer(player);
     setRole("host");
@@ -176,12 +195,12 @@ export function usePeerRoom({
     peer.on("connection", attachHostConnection);
     peer.on("error", (peerError) => {
       setStatus("error");
-      setError(peerError.message || "开房失败，请换个房间码再试。");
+      setError(friendlyPeerError(peerError.message));
     });
   }, [attachHostConnection, closeRoom]);
 
   const joinRoom = useCallback((code: string, playerName: string) => {
-    const cleanCode = code.trim().toUpperCase();
+    const cleanCode = sanitizeRoomCode(code);
     if (!cleanCode) return;
     closeRoom();
     const player = {
@@ -201,8 +220,17 @@ export function usePeerRoom({
     peer.on("open", () => {
       const conn = peer.connect(roomPeerId(cleanCode), { reliable: true });
       hostConnRef.current = conn;
+      const connectTimer = window.setTimeout(() => {
+        if (hostConnRef.current === conn && !conn.open) {
+          setStatus("error");
+          setError("连接超时了。请确认房主的房间页还开着，或者让房主重新创建一个房间码。");
+          conn.close();
+        }
+      }, 9000);
       conn.on("open", () => {
+        window.clearTimeout(connectTimer);
         setStatus("joined");
+        setError("");
         conn.send({ type: "join", player } satisfies JoinMessage);
         const url = new URL(window.location.href);
         url.searchParams.set("room", cleanCode);
@@ -217,7 +245,13 @@ export function usePeerRoom({
           handlersRef.current.onHostDisconnect();
         }
       });
+      conn.on("error", (connError) => {
+        window.clearTimeout(connectTimer);
+        setStatus("error");
+        setError(friendlyPeerError(connError.message));
+      });
       conn.on("close", () => {
+        window.clearTimeout(connectTimer);
         setStatus("offline");
         setError("房间连接断开了。");
         handlersRef.current.onHostDisconnect();
@@ -225,7 +259,7 @@ export function usePeerRoom({
     });
     peer.on("error", (peerError) => {
       setStatus("error");
-      setError(peerError.message || "加入失败，请检查房间码。");
+      setError(friendlyPeerError(peerError.message));
     });
   }, [closeRoom]);
 

@@ -123,9 +123,9 @@ export function GameTable({
               sound.unfold();
               onFinish();
             }}
-          >
-            <Check size={20} />
-            直接展开
+            >
+              <Check size={20} />
+            完成了
           </button>
         )}
       </aside>

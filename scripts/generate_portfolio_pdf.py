@@ -20,7 +20,7 @@ from reportlab.platypus import (
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = ROOT / "output" / "pdf"
-OUT_FILE = OUT_DIR / "折影猜意_作品集PDF.pdf"
+OUT_FILE = OUT_DIR / "谁是大裁谜_作品集PDF.pdf"
 
 FONT_REGULAR = "/System/Library/Fonts/Supplemental/Arial Unicode.ttf"
 
@@ -182,7 +182,7 @@ def on_later_pages(canvas, doc):
     canvas.line(18 * mm, A4[1] - 18 * mm, A4[0] - 18 * mm, A4[1] - 18 * mm)
     canvas.setFont("PortfolioCN", 8.5)
     canvas.setFillColor(colors.HexColor("#8A7068"))
-    canvas.drawString(18 * mm, 12 * mm, "《折影猜意》作品集 PDF")
+    canvas.drawString(18 * mm, 12 * mm, "《谁是大裁谜》作品集 PDF")
     canvas.drawRightString(A4[0] - 18 * mm, 12 * mm, f"{doc.page}")
     canvas.restoreState()
 
@@ -192,7 +192,7 @@ def build_story():
     story = []
 
     story.append(Spacer(1, 18 * mm))
-    story.append(p("折影猜意", S_TITLE))
+    story.append(p("谁是大裁谜", S_TITLE))
     story.append(p("剪纸版“你画我猜”的 Web 多人竞猜游戏", S_SUBTITLE))
     story.append(
         p(
@@ -218,7 +218,7 @@ def build_story():
                     S_H3,
                 ),
                 p(
-                    "《折影猜意》把“画图表达”替换成“折叠纸面上的剪裁表达”。玩家只能在局部纸面上剪出线条和洞口，系统展开后生成对称剪纸图案，其他玩家根据最终效果猜题。",
+                    "《谁是大裁谜》把“画图表达”替换成“折叠纸面上的剪裁表达”。玩家只能在局部纸面上剪出线条和洞口，系统展开后生成对称剪纸图案，其他玩家根据最终效果猜题。",
                     S_BODY,
                 ),
             ],
@@ -397,7 +397,7 @@ def build_story():
             [
                 p("可直接复制到申请系统的摘要", S_H3),
                 p(
-                    "《折影猜意》是一款把“你画我猜”改造成“折纸剪纸竞猜”的 Web 游戏。玩家在折叠纸面上剪裁局部图案，系统自动按折法展开成完整对称剪纸，其他玩家根据最终效果猜出具体物体或场景。项目将传统剪纸的折叠和展开过程转化为核心玩法限制，形成兼具文化辨识度、社交趣味和原型完成度的黑客松作品。",
+                    "《谁是大裁谜》是一款把“你画我猜”改造成“折纸剪纸竞猜”的 Web 游戏。玩家在折叠纸面上剪裁局部图案，系统自动按折法展开成完整对称剪纸，其他玩家根据最终效果猜出具体物体或场景。项目将传统剪纸的折叠和展开过程转化为核心玩法限制，形成兼具文化辨识度、社交趣味和原型完成度的黑客松作品。",
                     S_BODY,
                 ),
             ],
@@ -409,7 +409,7 @@ def build_story():
     story.append(
         meta_table(
             [
-                ("作品名称", "折影猜意"),
+                ("作品名称", "谁是大裁谜"),
                 ("推荐赛道", "传统文化 / Web 游戏 / 创意互动"),
                 ("作品形式", "可试玩 Web MVP 原型，本 PDF 为单文件作品集提交版。"),
                 ("核心卖点", "剪纸机制即玩法机制，折叠限制和展开反差天然产生竞猜乐趣。"),
@@ -420,7 +420,7 @@ def build_story():
     story.append(Spacer(1, 10 * mm))
     story.append(
         p(
-            "材料版本：2026-05-22  ｜  输出文件：折影猜意_作品集PDF.pdf",
+            "材料版本：2026-05-22  ｜  输出文件：谁是大裁谜_作品集PDF.pdf",
             S_SMALL,
         )
     )
@@ -445,7 +445,7 @@ def main():
         leftMargin=18 * mm,
         topMargin=22 * mm,
         bottomMargin=18 * mm,
-        title="折影猜意作品集PDF",
+        title="谁是大裁谜作品集PDF",
         author="Xiayu Zhai",
     )
     doc.build(build_story(), onFirstPage=on_first_page, onLaterPages=on_later_pages)
