@@ -47,6 +47,10 @@ function smoothLevelForRoom(room: Room): number {
   return 1;
 }
 
+function makePathId() {
+  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 export function CutPaperEditor({
   room,
   paths,
@@ -140,7 +144,7 @@ export function CutPaperEditor({
       onPathsChange([
         ...paths,
         {
-          id: crypto.randomUUID(),
+          id: makePathId(),
           points: closed ? closePathPoints(finalPoints) : finalPoints,
           width: 10,
           closed,

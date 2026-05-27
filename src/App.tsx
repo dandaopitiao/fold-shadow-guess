@@ -37,6 +37,46 @@ function drawerForRound(players: Player[], roundNumber: number) {
   return available[(roundNumber - 1) % available.length]?.id ?? "me";
 }
 
+function safeHalfFold(value: unknown): HalfFold {
+  return value === "horizontal" ? "horizontal" : "vertical";
+}
+
+function safePhase(value: unknown): Phase {
+  return value === "tutorial" || value === "draw" || value === "result" ? value : "lobby";
+}
+
+function safeRoomId(value: unknown): Room["id"] {
+  return rooms.some((room) => room.id === value) ? value as Room["id"] : rooms[0].id;
+}
+
+function safePaths(value: unknown): CutPath[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((path): path is CutPath =>
+    path &&
+    typeof path === "object" &&
+    Array.isArray((path as CutPath).points)
+  );
+}
+
+function safeGuesses(value: unknown): Guess[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((guess): guess is Guess =>
+    guess &&
+    typeof guess === "object" &&
+    typeof (guess as Guess).id === "string"
+  );
+}
+
+function safePlayers(value: unknown, fallback: Player[]): Player[] {
+  if (!Array.isArray(value)) return fallback;
+  const players = value.filter((player): player is Player =>
+    player &&
+    typeof player === "object" &&
+    typeof (player as Player).id === "string"
+  );
+  return players.length ? players : fallback;
+}
+
 export function App() {
   const [phase, setPhase] = useState<Phase>("lobby");
   const [selectedRoom, setSelectedRoom] = useState<Room>(rooms[0]);
@@ -59,6 +99,8 @@ export function App() {
   const timeLeftRef = useRef(timeLeft);
   const playersRef = useRef(players);
   const drawerIdRef = useRef(drawerId);
+  const roundIndexRef = useRef(roundIndex);
+  const localPlayerRef = useRef<Player>({ id: "me", name: "你", score: 0, avatar: "^_^" });
   const localPlayerIdRef = useRef("me");
   const finishRoundRef = useRef(() => {});
   const recentAnswersRef = useRef<Record<Room["id"], string[]>>({
@@ -79,7 +121,8 @@ export function App() {
     timeLeftRef.current = timeLeft;
     playersRef.current = players;
     drawerIdRef.current = drawerId;
-  }, [answer, timeLeft, players, drawerId]);
+    roundIndexRef.current = roundIndex;
+  }, [answer, timeLeft, players, drawerId, roundIndex]);
 
   const handleGuestJoin = useCallback((player: Player) => {
     setPlayers((current) =>
@@ -120,26 +163,47 @@ export function App() {
   }, []);
 
   const applySnapshot = useCallback((snapshot: PublicRoomSnapshot) => {
-    const room = rooms.find((item) => item.id === snapshot.roomId) ?? rooms[0];
+    const nextPhase = safePhase(snapshot.phase);
+    const nextRoomId = safeRoomId(snapshot.roomId);
+    const safeNetworkPlayers = safePlayers(snapshot.players, playersRef.current);
+    const localPlayer = localPlayerRef.current;
+    const nextPlayers =
+      localPlayer.id !== "me" && !safeNetworkPlayers.some((player) => player.id === localPlayer.id)
+        ? [...safeNetworkPlayers, localPlayer]
+        : safeNetworkPlayers;
+    const nextPaths = safePaths(snapshot.paths);
+    const nextGuesses = safeGuesses(snapshot.guesses);
+    const nextDrawerId =
+      typeof snapshot.drawerId === "string" && nextPlayers.some((player) => player.id === snapshot.drawerId)
+        ? snapshot.drawerId
+        : nextPlayers[0]?.id ?? "me";
+    const nextAnswerLength =
+      Number.isFinite(snapshot.answerLength) && snapshot.answerLength >= 0
+        ? snapshot.answerLength
+        : snapshot.answer?.length ?? answerRef.current.length ?? 0;
+    const room = rooms.find((item) => item.id === nextRoomId) ?? rooms[0];
     setSelectedRoom(room);
-    setPhase(snapshot.phase);
+    setPhase(nextPhase);
     if (snapshot.answer !== undefined) {
       setAnswer(snapshot.answer);
-    } else if (snapshot.phase !== "draw" || snapshot.drawerId !== localPlayerIdRef.current) {
+    } else if (nextPhase !== "draw" || nextDrawerId !== localPlayerIdRef.current) {
       setAnswer("");
     }
-    setAnswerLength(snapshot.answerLength);
-    setDrawerId(snapshot.drawerId);
-    setHalfFold(snapshot.halfFold);
-    setTimeLeft(snapshot.timeLeft);
-    setPaths(snapshot.paths);
-    setGuesses(snapshot.guesses);
-    setPlayers(snapshot.players);
-    setRoundIndex(snapshot.roundIndex);
-    setNotice(snapshot.notice);
+    setAnswerLength(nextAnswerLength);
+    setDrawerId(nextDrawerId);
+    setHalfFold(safeHalfFold(snapshot.halfFold));
+    setTimeLeft(Number.isFinite(snapshot.timeLeft) ? snapshot.timeLeft : ROUND_SECONDS);
+    setPaths(nextPaths);
+    setGuesses(nextGuesses);
+    setPlayers(nextPlayers);
+    setRoundIndex(Number.isFinite(snapshot.roundIndex) && snapshot.roundIndex > 0 ? snapshot.roundIndex : 1);
+    setNotice(typeof snapshot.notice === "string" ? snapshot.notice : "房间同步中，马上就好。");
   }, []);
 
-  const handlePrivateAnswer = useCallback((privateAnswer: string) => {
+  const handlePrivateAnswer = useCallback((privateAnswer: string, answerRoundIndex: number, answerDrawerId: string) => {
+    const roundMatches = !answerRoundIndex || answerRoundIndex === roundIndexRef.current;
+    const drawerMatches = !answerDrawerId || answerDrawerId === localPlayerIdRef.current;
+    if (!roundMatches || !drawerMatches) return;
     setAnswer(privateAnswer);
     setAnswerLength(privateAnswer.length);
   }, []);
@@ -194,7 +258,8 @@ export function App() {
 
   useEffect(() => {
     localPlayerIdRef.current = peerRoom.localPlayer.id;
-  }, [peerRoom.localPlayer.id]);
+    localPlayerRef.current = peerRoom.localPlayer;
+  }, [peerRoom.localPlayer]);
 
   useEffect(() => {
     if (peerRoom.role !== "host" || peerRoom.status !== "hosting") return;
@@ -220,10 +285,12 @@ export function App() {
   const startRound = (room = selectedRoom, nextRoundIndex = roundIndex) => {
     if (peerRoom.role === "guest") return;
     const nextAnswer = pickQuestion(room);
+    const nextPlayers = playersRef.current;
     const nextDrawerId =
       peerRoom.role === "demo"
         ? "me"
-        : drawerForRound(playersRef.current, nextRoundIndex);
+        : drawerForRound(nextPlayers, nextRoundIndex);
+    const nextNotice = `${nextPlayers.find((player) => player.id === nextDrawerId)?.name ?? "剪纸手"} 上场剪纸啦，剪完点“完成了”就进入结算。`;
     setSelectedRoom(room);
     setAnswer(nextAnswer);
     setAnswerLength(nextAnswer.length);
@@ -234,22 +301,51 @@ export function App() {
     setTimeLeft(ROUND_SECONDS);
     prevTimeRef.current = ROUND_SECONDS;
     lastBotGuessSecond.current = null;
-    const drawerName = playersRef.current.find((player) => player.id === nextDrawerId)?.name ?? "剪纸手";
-    setNotice(`${drawerName} 上场剪纸啦，剪完点“完成了”就进入结算。`);
+    setNotice(nextNotice);
     sound.start();
     setPhase("draw");
-    if (nextDrawerId !== "me") {
-      window.setTimeout(() => peerRoom.sendPrivateAnswer(nextDrawerId, nextAnswer), 160);
+    if (peerRoom.role === "host") {
+      peerRoom.broadcastSnapshot({
+        phase: "draw",
+        roomId: room.id,
+        answerLength: nextAnswer.length,
+        drawerId: nextDrawerId,
+        halfFold: "vertical",
+        timeLeft: ROUND_SECONDS,
+        paths: [],
+        guesses: [],
+        players: nextPlayers,
+        roundIndex: nextRoundIndex,
+        notice: nextNotice,
+      });
+    }
+    if (peerRoom.role === "host" && nextDrawerId !== "me") {
+      window.setTimeout(() => peerRoom.sendPrivateAnswer(nextDrawerId, nextAnswer, nextRoundIndex), 160);
     }
   };
 
   const finishRound = () => {
     if (peerRoom.role === "guest") return;
     sound.result();
-    setPlayers((current) =>
-      applyRoundScores(current, correctGuesses, drawerScore, drawerIdRef.current)
-    );
+    const scoredPlayers = applyRoundScores(playersRef.current, correctGuesses, drawerScore, drawerIdRef.current);
+    setPlayers(scoredPlayers);
     setPhase("result");
+    if (peerRoom.role === "host") {
+      peerRoom.broadcastSnapshot({
+        phase: "result",
+        roomId: selectedRoom.id,
+        answer,
+        answerLength: answer.length,
+        drawerId: drawerIdRef.current,
+        halfFold,
+        timeLeft,
+        paths,
+        guesses,
+        players: scoredPlayers,
+        roundIndex,
+        notice,
+      });
+    }
   };
 
   finishRoundRef.current = finishRound;

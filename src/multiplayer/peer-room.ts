@@ -25,7 +25,12 @@ type GuessMessage = { type: "guess"; playerId: string; text: string };
 type PathsMessage = { type: "paths"; paths: CutPath[] };
 type HalfFoldMessage = { type: "half_fold"; halfFold: HalfFold };
 type FinishMessage = { type: "finish" };
-type PrivateAnswerMessage = { type: "private_answer"; answer: string };
+type PrivateAnswerMessage = {
+  type: "private_answer";
+  answer: string;
+  roundIndex: number;
+  drawerId: string;
+};
 type SnapshotMessage = { type: "snapshot"; snapshot: PublicRoomSnapshot };
 type HostClosedMessage = { type: "host_closed" };
 type RoomMessage =
@@ -45,7 +50,7 @@ type PeerRoomOptions = {
   onGuestHalfFold: (halfFold: HalfFold) => void;
   onGuestFinish: () => void;
   onSnapshot: (snapshot: PublicRoomSnapshot) => void;
-  onPrivateAnswer: (answer: string) => void;
+  onPrivateAnswer: (answer: string, roundIndex: number, drawerId: string) => void;
   onHostDisconnect: () => void;
   getSnapshot: () => PublicRoomSnapshot;
 };
@@ -289,7 +294,9 @@ export function usePeerRoom({
       conn.on("data", (raw) => {
         const message = raw as RoomMessage;
         if (message.type === "snapshot") handlersRef.current.onSnapshot(message.snapshot);
-        if (message.type === "private_answer") handlersRef.current.onPrivateAnswer(message.answer);
+        if (message.type === "private_answer") {
+          handlersRef.current.onPrivateAnswer(message.answer, message.roundIndex, message.drawerId);
+        }
         if (message.type === "host_closed") {
           setStatus("offline");
           setError("房主结束了房间。");
@@ -338,10 +345,15 @@ export function usePeerRoom({
     conn.send({ type: "finish" } satisfies FinishMessage);
   }, []);
 
-  const sendPrivateAnswer = useCallback((playerId: string, answer: string) => {
+  const sendPrivateAnswer = useCallback((playerId: string, answer: string, roundIndex: number) => {
     const conn = guestConnsRef.current.find((item) => item.peer === playerId);
     if (!conn?.open) return;
-    conn.send({ type: "private_answer", answer } satisfies PrivateAnswerMessage);
+    conn.send({
+      type: "private_answer",
+      answer,
+      roundIndex,
+      drawerId: playerId,
+    } satisfies PrivateAnswerMessage);
   }, []);
 
   return {

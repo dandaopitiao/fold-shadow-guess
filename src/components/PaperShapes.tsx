@@ -78,9 +78,12 @@ export function UnfoldedPaperShape({ mode }: { mode: FoldMode }) {
 // ======== 剪裁路径渲染 ========
 
 export function CutPathGroup({ paths }: { paths: CutPath[] }) {
+  const safePaths = Array.isArray(paths)
+    ? paths.filter((path) => path && Array.isArray(path.points))
+    : [];
   return (
     <g>
-      {paths.map((path) => (
+      {safePaths.map((path) => (
         <g key={path.id}>
           {(path.closed || path.edgeDrop) && (
             <polygon
@@ -110,6 +113,7 @@ export function ExpandedCuts({
   paths: CutPath[];
   halfFold?: HalfFold;
 }) {
+  const safePaths = Array.isArray(paths) ? paths : [];
   const transforms =
     mode === "half"
       ? halfFold === "horizontal"
@@ -130,7 +134,7 @@ export function ExpandedCuts({
     <g>
       {transforms.map((transform, index) => (
         <g key={index} transform={transform}>
-          <CutPathGroup paths={paths} />
+          <CutPathGroup paths={safePaths} />
         </g>
       ))}
     </g>

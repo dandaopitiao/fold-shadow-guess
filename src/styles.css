@@ -238,6 +238,34 @@ input:focus {
   margin: 0 auto;
 }
 
+.sync-error-card {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  gap: 16px;
+  justify-items: start;
+  max-width: 560px;
+  margin: 12vh auto 0;
+  padding: 30px;
+  border: 3px solid rgba(255, 255, 255, 0.86);
+  border-radius: 28px;
+  background: rgba(255, 253, 248, 0.82);
+  box-shadow: var(--soft-shadow);
+}
+
+.sync-error-card h1 {
+  margin: 6px 0 0;
+  font-size: 50px;
+}
+
+.sync-error-card p {
+  margin: 0;
+  color: #684554;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.7;
+}
+
 .lobby-grid {
   display: grid;
   grid-template-columns: minmax(380px, 1.1fr) minmax(360px, 0.92fr) 280px;
