@@ -1,13 +1,13 @@
 import { Check, Clock3, Medal, Send, Sparkles } from "lucide-react";
 import { useState } from "react";
-import type { CutPath, Guess, Player, Room } from "../types";
-import type { NetworkRole } from "../multiplayer/peer-room";
+import type { CutPath, Guess, HalfFold, Player, Room } from "../types";
 import { sound } from "../audio/sound-manager";
 import { CutPaperEditor } from "./CutPaperEditor";
 
 type GameTableProps = {
   room: Room;
   answer: string;
+  answerLength: number;
   timeLeft: number;
   paths: CutPath[];
   guesses: Guess[];
@@ -16,14 +16,18 @@ type GameTableProps = {
   roundIndex: number;
   onPathsChange: (paths: CutPath[]) => void;
   onFinish: () => void;
+  halfFold: HalfFold;
+  onHalfFoldChange: (halfFold: HalfFold) => void;
   isDrawer: boolean;
-  networkRole: NetworkRole;
+  canGuess: boolean;
+  drawerName: string;
   onGuessSubmit: (text: string) => void;
 };
 
 export function GameTable({
   room,
   answer,
+  answerLength,
   timeLeft,
   paths,
   guesses,
@@ -32,12 +36,14 @@ export function GameTable({
   roundIndex,
   onPathsChange,
   onFinish,
+  halfFold,
+  onHalfFoldChange,
   isDrawer,
-  networkRole,
+  canGuess,
+  drawerName,
   onGuessSubmit,
 }: GameTableProps) {
   const [guessText, setGuessText] = useState("");
-  const isGuest = networkRole === "guest";
 
   const submitGuess = () => {
     const text = guessText.trim();
@@ -53,6 +59,11 @@ export function GameTable({
         <div>
           <small>{isDrawer ? "你要剪的是" : "你正在猜"}</small>
           <strong>{isDrawer ? answer : "看图抢答"}</strong>
+          {!isDrawer && (
+            <span className="answer-hint">
+              答案 {answerLength || "?"} 个字 · 本轮剪纸手：{drawerName}
+            </span>
+          )}
         </div>
         <div className={`timer${timeLeft <= 5 ? " critical" : timeLeft <= 10 ? " urgent" : ""}`}>
           <Clock3 size={18} />
@@ -65,6 +76,8 @@ export function GameTable({
         paths={paths}
         onPathsChange={onPathsChange}
         onFinish={onFinish}
+        halfFold={halfFold}
+        onHalfFoldChange={onHalfFoldChange}
         readOnly={!isDrawer}
       />
 
@@ -84,7 +97,7 @@ export function GameTable({
               </div>
             ))}
           </div>
-          {isGuest && (
+          {canGuess && (
             <form
               className="guess-form"
               onSubmit={(event) => {

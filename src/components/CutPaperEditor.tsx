@@ -10,7 +10,7 @@ import {
   Magnet,
   Maximize2,
 } from "lucide-react";
-import type { CutPath, FoldMode, Point, Room } from "../types";
+import type { CutPath, FoldMode, HalfFold, Point, Room } from "../types";
 import { sound } from "../audio/sound-manager";
 import {
   clampToFoldedArea,
@@ -35,6 +35,8 @@ type CutPaperEditorProps = {
   paths: CutPath[];
   onPathsChange: (paths: CutPath[]) => void;
   onFinish: () => void;
+  halfFold: HalfFold;
+  onHalfFoldChange: (halfFold: HalfFold) => void;
   readOnly?: boolean;
 };
 
@@ -50,6 +52,8 @@ export function CutPaperEditor({
   paths,
   onPathsChange,
   onFinish,
+  halfFold,
+  onHalfFoldChange,
   readOnly = false,
 }: CutPaperEditorProps) {
   const [draft, setDraft] = useState<Point[]>([]);
@@ -74,9 +78,9 @@ export function CutPaperEditor({
         x: ((event.clientX - rect.left) / rect.width) * 320,
         y: ((event.clientY - rect.top) / rect.height) * 320,
       };
-      return clampToFoldedArea(room.id, raw);
+      return clampToFoldedArea(room.id, raw, halfFold);
     },
-    [room.id]
+    [halfFold, room.id]
   );
 
   const refreshDraftOnFrame = () => {
@@ -121,9 +125,9 @@ export function CutPaperEditor({
     if (rawDraft.current.length > 1) {
       // 完成一笔：平滑 + 简化（RDP）
       let finalPoints = smoothPoints(rawDraft.current, smoothLv);
-      finalPoints = snapPathEdgeEndpoints(room.id, finalPoints);
+      finalPoints = snapPathEdgeEndpoints(room.id, finalPoints, halfFold);
       finalPoints = simplifyPoints(finalPoints, simplifyEps);
-      finalPoints = snapPathEdgeEndpoints(room.id, finalPoints);
+      finalPoints = snapPathEdgeEndpoints(room.id, finalPoints, halfFold);
 
       // 吸附模式：加宽闭合检测阈值，帮助手抖用户自动闭合
       const closed =
@@ -140,7 +144,7 @@ export function CutPaperEditor({
           points: closed ? closePathPoints(finalPoints) : finalPoints,
           width: 10,
           closed,
-          edgeDrop: !closed && isEdgeDropPath(room.id, finalPoints),
+          edgeDrop: !closed && isEdgeDropPath(room.id, finalPoints, halfFold),
         },
       ]);
     }
@@ -192,6 +196,12 @@ export function CutPaperEditor({
   const clearAll = () => {
     sound.click();
     onPathsChange([]);
+  };
+
+  const switchHalfFold = (nextFold: HalfFold) => {
+    if (readOnly || room.id !== "half" || nextFold === halfFold) return;
+    sound.select();
+    onHalfFoldChange(nextFold);
   };
 
   return (
@@ -259,10 +269,10 @@ export function CutPaperEditor({
         >
           <defs>
             <clipPath id={clipId}>
-              <FoldedClipShape mode={room.id} />
+              <FoldedClipShape mode={room.id} halfFold={halfFold} />
             </clipPath>
           </defs>
-          <FoldedPaperShape mode={room.id} />
+          <FoldedPaperShape mode={room.id} halfFold={halfFold} />
           <g clipPath={`url(#${clipId})`}>
             <CutPathGroup paths={previewPaths} />
           </g>
@@ -274,6 +284,24 @@ export function CutPaperEditor({
           </div>
         ) : (
           <div className="tool-row">
+            {room.id === "half" && (
+              <div className="fold-switch" aria-label="二折方向">
+                <button
+                  className={halfFold === "vertical" ? "active" : ""}
+                  onClick={() => switchHalfFold("vertical")}
+                  type="button"
+                >
+                  竖着折
+                </button>
+                <button
+                  className={halfFold === "horizontal" ? "active" : ""}
+                  onClick={() => switchHalfFold("horizontal")}
+                  type="button"
+                >
+                  横着折
+                </button>
+              </div>
+            )}
             <button className="icon-button" title="撤回上一刀" onClick={undoLast}>
               <RotateCcw size={18} />
             </button>
@@ -308,7 +336,7 @@ export function CutPaperEditor({
           aria-label="展开后的剪纸效果预览"
         >
           <UnfoldedPaperShape mode={room.id} />
-          <ExpandedCuts mode={room.id} paths={previewPaths} />
+          <ExpandedCuts mode={room.id} paths={previewPaths} halfFold={halfFold} />
         </svg>
       </div>
     </div>

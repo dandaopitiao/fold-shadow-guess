@@ -1,5 +1,5 @@
 import { LogOut, Play, Trophy } from "lucide-react";
-import type { CutPath, Guess, Player, Room } from "../types";
+import type { CutPath, Guess, HalfFold, Player, Room } from "../types";
 import { sound } from "../audio/sound-manager";
 import { UnfoldedPaperShape, ExpandedCuts } from "./PaperShapes";
 
@@ -10,6 +10,7 @@ type ResultScreenProps = {
   guesses: Guess[];
   players: Player[];
   drawerScore: number;
+  halfFold: HalfFold;
   onNext: () => void;
   onLobby: () => void;
   canStartNext?: boolean;
@@ -22,6 +23,7 @@ export function ResultScreen({
   guesses,
   players,
   drawerScore,
+  halfFold,
   onNext,
   onLobby,
   canStartNext = true,
@@ -45,7 +47,7 @@ export function ResultScreen({
           aria-label="本轮剪纸成果"
         >
           <UnfoldedPaperShape mode={room.id} />
-          <ExpandedCuts mode={room.id} paths={paths} />
+          <ExpandedCuts mode={room.id} paths={paths} halfFold={halfFold} />
         </svg>
       </div>
       <div className="result-info">
@@ -106,7 +108,7 @@ export function ResultScreen({
             }}
           >
             <LogOut size={18} />
-            结束
+            返回大厅
           </button>
         </div>
       </div>

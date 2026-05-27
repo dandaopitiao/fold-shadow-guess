@@ -1,4 +1,5 @@
 export type FoldMode = "half" | "quarter" | "sixth" | "eighth";
+export type HalfFold = "vertical" | "horizontal";
 export type Phase = "lobby" | "tutorial" | "draw" | "result";
 
 export type Point = { x: number; y: number };

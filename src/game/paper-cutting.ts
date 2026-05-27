@@ -1,11 +1,16 @@
-import type { FoldMode, Point } from "../types";
+import type { FoldMode, HalfFold, Point } from "../types";
 
 // ========== 区域定义 ==========
 
 export const rectFoldBounds: Record<string, { x1: number; y1: number; x2: number; y2: number }> = {
   half: { x1: 64, y1: 52, x2: 160, y2: 268 },
+  "half-horizontal": { x1: 52, y1: 64, x2: 268, y2: 160 },
   quarter: { x1: 64, y1: 64, x2: 160, y2: 160 },
 };
+
+function rectKey(mode: FoldMode, halfFold: HalfFold) {
+  return mode === "half" && halfFold === "horizontal" ? "half-horizontal" : mode;
+}
 
 // sixth 扇形区域（60° wedge，用于交互 clamp）
 const SIXTH_WEDGE = {
@@ -99,9 +104,9 @@ export function closePathPoints(points: Point[]) {
 
 // ========== 可绘制区域 clamp ==========
 
-export function clampToFoldedArea(mode: FoldMode, point: Point): Point {
+export function clampToFoldedArea(mode: FoldMode, point: Point, halfFold: HalfFold = "vertical"): Point {
   if (mode === "half" || mode === "quarter") {
-    const bounds = rectFoldBounds[mode];
+    const bounds = rectFoldBounds[rectKey(mode, halfFold)];
     return {
       x: Math.min(bounds.x2, Math.max(bounds.x1, point.x)),
       y: Math.min(bounds.y2, Math.max(bounds.y1, point.y)),
@@ -122,40 +127,45 @@ export function clampToFoldedArea(mode: FoldMode, point: Point): Point {
 
 // ========== 边缘掉片检测 ==========
 
-function touchedRectEdge(mode: FoldMode, point: Point): string | null {
+function touchedRectEdge(mode: FoldMode, point: Point, halfFold: HalfFold = "vertical"): string | null {
   if (mode !== "half" && mode !== "quarter") return null;
-  const bounds = rectFoldBounds[mode];
+  const bounds = rectFoldBounds[rectKey(mode, halfFold)];
   const threshold = 28;
   if (Math.abs(point.x - bounds.x1) < threshold) return "left";
-  if (Math.abs(point.x - bounds.x2) < threshold) return "fold";
   if (Math.abs(point.y - bounds.y1) < threshold) return "top";
+  if (mode === "half" && halfFold === "horizontal" && Math.abs(point.y - bounds.y2) < threshold) return "fold";
+  if (Math.abs(point.x - bounds.x2) < threshold) return "fold";
   if (Math.abs(point.y - bounds.y2) < threshold) return "bottom";
   return null;
 }
 
-function snapPointToRectEdge(mode: FoldMode, point: Point): Point {
+function snapPointToRectEdge(mode: FoldMode, point: Point, halfFold: HalfFold = "vertical"): Point {
   if (mode !== "half" && mode !== "quarter") return point;
-  const bounds = rectFoldBounds[mode];
-  const edge = touchedRectEdge(mode, point);
+  const bounds = rectFoldBounds[rectKey(mode, halfFold)];
+  const edge = touchedRectEdge(mode, point, halfFold);
   if (!edge) return point;
   if (edge === "left") return { ...point, x: bounds.x1 };
-  if (edge === "fold") return { ...point, x: bounds.x2 };
+  if (edge === "fold") {
+    return mode === "half" && halfFold === "horizontal"
+      ? { ...point, y: bounds.y2 }
+      : { ...point, x: bounds.x2 };
+  }
   if (edge === "top") return { ...point, y: bounds.y1 };
   return { ...point, y: bounds.y2 };
 }
 
-export function snapPathEdgeEndpoints(mode: FoldMode, points: Point[]) {
+export function snapPathEdgeEndpoints(mode: FoldMode, points: Point[], halfFold: HalfFold = "vertical") {
   if (points.length < 2) return points;
   const snapped = [...points];
-  snapped[0] = snapPointToRectEdge(mode, snapped[0]);
-  snapped[snapped.length - 1] = snapPointToRectEdge(mode, snapped[snapped.length - 1]);
+  snapped[0] = snapPointToRectEdge(mode, snapped[0], halfFold);
+  snapped[snapped.length - 1] = snapPointToRectEdge(mode, snapped[snapped.length - 1], halfFold);
   return snapped;
 }
 
-export function isEdgeDropPath(mode: FoldMode, points: Point[]) {
+export function isEdgeDropPath(mode: FoldMode, points: Point[], halfFold: HalfFold = "vertical") {
   if (points.length < 4) return false;
-  const firstEdge = touchedRectEdge(mode, points[0]);
-  const lastEdge = touchedRectEdge(mode, points[points.length - 1]);
+  const firstEdge = touchedRectEdge(mode, points[0], halfFold);
+  const lastEdge = touchedRectEdge(mode, points[points.length - 1], halfFold);
   // 同一边 + 距离足够远 → 真正割下一片
   return (
     firstEdge !== null &&

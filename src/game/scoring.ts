@@ -19,13 +19,18 @@ export function calcDrawerScore(correctGuesses: Guess[]) {
   return correctGuesses.length * 200 + speedBonus;
 }
 
-export function applyRoundScores(players: Player[], correctGuesses: Guess[], drawerScore: number): Player[] {
+export function applyRoundScores(
+  players: Player[],
+  correctGuesses: Guess[],
+  drawerScore: number,
+  drawerId = "me"
+): Player[] {
   const next = players.map((player) => ({ ...player }));
   for (const guess of correctGuesses) {
     const target = next.find((p) => p.id === guess.playerId);
     if (target && guess.order) target.score += scoreByOrder(guess.order);
   }
-  const me = next.find((p) => p.id === "me");
-  if (me) me.score += drawerScore;
+  const drawer = next.find((p) => p.id === drawerId);
+  if (drawer) drawer.score += drawerScore;
   return next;
 }

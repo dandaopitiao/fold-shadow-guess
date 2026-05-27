@@ -5,7 +5,7 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import type { CutPath, Guess, Phase, Player, Room } from "./types";
+import type { CutPath, Guess, HalfFold, Phase, Player, Room } from "./types";
 import { rooms } from "./data/rooms";
 import {
   pick,
@@ -14,6 +14,7 @@ import {
   ROUND_SECONDS,
   botNames,
   botGuessNotices,
+  cleanPlayerName,
 } from "./data/constants";
 import { calcDrawerScore, applyRoundScores } from "./game/scoring";
 import { sound } from "./audio/sound-manager";
@@ -31,15 +32,23 @@ function normalizeAnswer(value: string) {
     .replace(/^小(?=房子|亭子|船|猫|兔子)/, "");
 }
 
+function drawerForRound(players: Player[], roundNumber: number) {
+  const available = players.length ? players : [{ id: "me" } as Player];
+  return available[(roundNumber - 1) % available.length]?.id ?? "me";
+}
+
 export function App() {
   const [phase, setPhase] = useState<Phase>("lobby");
   const [selectedRoom, setSelectedRoom] = useState<Room>(rooms[0]);
   const [players, setPlayers] = useState<Player[]>(makePlayers);
   const [answer, setAnswer] = useState(() => pick(rooms[0].questions));
+  const [answerLength, setAnswerLength] = useState(answer.length);
   const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS);
   const [paths, setPaths] = useState<CutPath[]>([]);
   const [guesses, setGuesses] = useState<Guess[]>([]);
   const [roundIndex, setRoundIndex] = useState(1);
+  const [drawerId, setDrawerId] = useState("me");
+  const [halfFold, setHalfFold] = useState<HalfFold>("vertical");
   const [notice, setNotice] = useState(
     "沙沙沙… 拿起小剪刀开剪吧！记得让人看出你剪的是什么～"
   );
@@ -49,6 +58,9 @@ export function App() {
   const answerRef = useRef(answer);
   const timeLeftRef = useRef(timeLeft);
   const playersRef = useRef(players);
+  const drawerIdRef = useRef(drawerId);
+  const localPlayerIdRef = useRef("me");
+  const finishRoundRef = useRef(() => {});
   const recentAnswersRef = useRef<Record<Room["id"], string[]>>({
     half: [],
     quarter: [],
@@ -66,7 +78,8 @@ export function App() {
     answerRef.current = answer;
     timeLeftRef.current = timeLeft;
     playersRef.current = players;
-  }, [answer, timeLeft, players]);
+    drawerIdRef.current = drawerId;
+  }, [answer, timeLeft, players, drawerId]);
 
   const handleGuestJoin = useCallback((player: Player) => {
     setPlayers((current) =>
@@ -110,7 +123,14 @@ export function App() {
     const room = rooms.find((item) => item.id === snapshot.roomId) ?? rooms[0];
     setSelectedRoom(room);
     setPhase(snapshot.phase);
-    setAnswer(snapshot.answer ?? "");
+    if (snapshot.answer !== undefined) {
+      setAnswer(snapshot.answer);
+    } else if (snapshot.phase !== "draw" || snapshot.drawerId !== localPlayerIdRef.current) {
+      setAnswer("");
+    }
+    setAnswerLength(snapshot.answerLength);
+    setDrawerId(snapshot.drawerId);
+    setHalfFold(snapshot.halfFold);
     setTimeLeft(snapshot.timeLeft);
     setPaths(snapshot.paths);
     setGuesses(snapshot.guesses);
@@ -119,12 +139,29 @@ export function App() {
     setNotice(snapshot.notice);
   }, []);
 
+  const handlePrivateAnswer = useCallback((privateAnswer: string) => {
+    setAnswer(privateAnswer);
+    setAnswerLength(privateAnswer.length);
+  }, []);
+
+  const handleGuestPaths = useCallback((nextPaths: CutPath[]) => {
+    setPaths(nextPaths);
+  }, []);
+
+  const handleGuestHalfFold = useCallback((nextHalfFold: HalfFold) => {
+    setHalfFold(nextHalfFold);
+    setPaths([]);
+  }, []);
+
   const handleHostDisconnect = useCallback(() => {
     setPhase("lobby");
     setPaths([]);
     setGuesses([]);
     setPlayers(makePlayers());
     setTimeLeft(ROUND_SECONDS);
+    setDrawerId("me");
+    setHalfFold("vertical");
+    setAnswerLength(0);
     setNotice("房间断开了，可以重新加入或自己开一局。");
   }, []);
 
@@ -132,21 +169,32 @@ export function App() {
     phase,
     roomId: selectedRoom.id,
     answer: phase === "result" ? answer : undefined,
+    answerLength,
+    drawerId,
+    halfFold,
     timeLeft,
     paths,
     guesses,
     players,
     roundIndex,
     notice,
-  }), [answer, guesses, notice, paths, phase, players, roundIndex, selectedRoom.id, timeLeft]);
+  }), [answer, answerLength, drawerId, guesses, halfFold, notice, paths, phase, players, roundIndex, selectedRoom.id, timeLeft]);
 
   const peerRoom = usePeerRoom({
     onGuestJoin: handleGuestJoin,
     onGuestGuess: submitHostGuess,
+    onGuestPaths: handleGuestPaths,
+    onGuestHalfFold: handleGuestHalfFold,
+    onGuestFinish: () => finishRoundRef.current(),
     onSnapshot: applySnapshot,
+    onPrivateAnswer: handlePrivateAnswer,
     onHostDisconnect: handleHostDisconnect,
     getSnapshot,
   });
+
+  useEffect(() => {
+    localPlayerIdRef.current = peerRoom.localPlayer.id;
+  }, [peerRoom.localPlayer.id]);
 
   useEffect(() => {
     if (peerRoom.role !== "host" || peerRoom.status !== "hosting") return;
@@ -169,40 +217,95 @@ export function App() {
     return next;
   };
 
-  const startRound = (room = selectedRoom) => {
+  const startRound = (room = selectedRoom, nextRoundIndex = roundIndex) => {
     if (peerRoom.role === "guest") return;
+    const nextAnswer = pickQuestion(room);
+    const nextDrawerId =
+      peerRoom.role === "demo"
+        ? "me"
+        : drawerForRound(playersRef.current, nextRoundIndex);
     setSelectedRoom(room);
-    setAnswer(pickQuestion(room));
+    setAnswer(nextAnswer);
+    setAnswerLength(nextAnswer.length);
+    setDrawerId(nextDrawerId);
+    setHalfFold("vertical");
     setPaths([]);
     setGuesses([]);
     setTimeLeft(ROUND_SECONDS);
     prevTimeRef.current = ROUND_SECONDS;
     lastBotGuessSecond.current = null;
-    setNotice("纸已经折好啦，剪完就点“完成了”展开给大家猜！");
+    const drawerName = playersRef.current.find((player) => player.id === nextDrawerId)?.name ?? "剪纸手";
+    setNotice(`${drawerName} 上场剪纸啦，剪完点“完成了”就进入结算。`);
     sound.start();
     setPhase("draw");
+    if (nextDrawerId !== "me") {
+      window.setTimeout(() => peerRoom.sendPrivateAnswer(nextDrawerId, nextAnswer), 160);
+    }
   };
 
   const finishRound = () => {
     if (peerRoom.role === "guest") return;
     sound.result();
     setPlayers((current) =>
-      applyRoundScores(current, correctGuesses, drawerScore)
+      applyRoundScores(current, correctGuesses, drawerScore, drawerIdRef.current)
     );
     setPhase("result");
   };
+
+  finishRoundRef.current = finishRound;
 
   const resetGame = () => {
     if (peerRoom.role !== "demo") peerRoom.closeRoom();
     setPlayers(makePlayers());
     setRoundIndex(1);
+    setDrawerId("me");
+    setHalfFold("vertical");
+    setAnswerLength(answer.length);
     setPhase("lobby");
     setNotice("回到大厅啦，选个难度继续开剪。");
   };
 
   const nextRound = () => {
-    setRoundIndex((v) => v + 1);
-    startRound(selectedRoom);
+    if (peerRoom.role === "guest") return;
+    const next = roundIndex + 1;
+    setRoundIndex(next);
+    startRound(selectedRoom, next);
+  };
+
+  const isLocalDrawer = peerRoom.role === "demo" || peerRoom.localPlayer.id === drawerId;
+  const drawerName = players.find((player) => player.id === drawerId)?.name ?? "剪纸手";
+
+  const changePaths = (nextPaths: CutPath[]) => {
+    if (!isLocalDrawer) return;
+    setPaths(nextPaths);
+    if (peerRoom.role === "guest") peerRoom.sendPaths(nextPaths);
+  };
+
+  const changeHalfFold = (nextHalfFold: HalfFold) => {
+    if (!isLocalDrawer) return;
+    setHalfFold(nextHalfFold);
+    setPaths([]);
+    if (peerRoom.role === "guest") peerRoom.sendHalfFold(nextHalfFold);
+  };
+
+  const requestFinishRound = () => {
+    if (!isLocalDrawer) return;
+    if (peerRoom.role === "guest") {
+      sound.result();
+      setNotice("剪纸完成，正在等房主打开结算页。");
+      peerRoom.sendFinish();
+      return;
+    }
+    finishRound();
+  };
+
+  const submitGuess = (text: string) => {
+    if (isLocalDrawer || peerRoom.role === "demo") return;
+    if (peerRoom.role === "guest") {
+      peerRoom.sendGuess(text);
+      return;
+    }
+    submitHostGuess(peerRoom.localPlayer.id, text);
   };
 
   // 倒计时：接近 10s 时逐秒加速（间隔递减），产生紧迫感
@@ -275,9 +378,10 @@ export function App() {
   }, [phase, timeLeft, answer, paths.length, peerRoom.role]);
 
   const createOnlineRoom = (playerName: string, roomCode?: string) => {
+    const name = cleanPlayerName(playerName, "房主");
     const hostPlayer: Player = {
       id: "me",
-      name: playerName.trim() || "房主",
+      name,
       score: 0,
       avatar: "^_^",
     };
@@ -290,7 +394,8 @@ export function App() {
   const joinOnlineRoom = (roomCode: string, playerName: string) => {
     setPhase("lobby");
     setNotice("正在加入朋友的剪纸房间。");
-    peerRoom.joinRoom(roomCode, playerName);
+    const guestFallback = `剪友${Math.floor(100 + Math.random() * 900)}`;
+    peerRoom.joinRoom(roomCode, cleanPlayerName(playerName, guestFallback));
   };
 
   return (
@@ -354,17 +459,21 @@ export function App() {
         <GameTable
           room={selectedRoom}
           answer={answer}
+          answerLength={answerLength}
           timeLeft={timeLeft}
           paths={paths}
           guesses={guesses}
           notice={notice}
           players={players}
           roundIndex={roundIndex}
-          onPathsChange={setPaths}
-          onFinish={finishRound}
-          isDrawer={peerRoom.role !== "guest"}
-          networkRole={peerRoom.role}
-          onGuessSubmit={peerRoom.sendGuess}
+          onPathsChange={changePaths}
+          onFinish={requestFinishRound}
+          halfFold={halfFold}
+          onHalfFoldChange={changeHalfFold}
+          isDrawer={isLocalDrawer}
+          canGuess={peerRoom.role !== "demo" && !isLocalDrawer}
+          drawerName={drawerName}
+          onGuessSubmit={submitGuess}
         />
       )}
 
@@ -376,6 +485,7 @@ export function App() {
           guesses={guesses}
           players={players}
           drawerScore={drawerScore}
+          halfFold={halfFold}
           onNext={nextRound}
           onLobby={resetGame}
           canStartNext={peerRoom.role !== "guest"}

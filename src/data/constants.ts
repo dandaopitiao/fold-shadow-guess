@@ -6,6 +6,11 @@ export const botNames = ["阿年", "小满", "纸片人", "花刀", "窗边高�
 
 export const playerFaces = ["^_^", "o_o", "n_n", ">_<", "*_*", "-_-"];
 
+export function cleanPlayerName(value: string, fallback: string) {
+  const compact = value.trim().replace(/\s+/g, "");
+  return compact.slice(0, 10) || fallback;
+}
+
 export const wrongGuessPool = [
   "拖鞋",
   "鱼骨头",

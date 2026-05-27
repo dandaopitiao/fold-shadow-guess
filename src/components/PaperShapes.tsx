@@ -2,11 +2,20 @@
  * 共享 SVG 图形组件
  * 供 CutPaperEditor、ResultScreen 等复用，避免重复定义。
  */
-import type { CutPath, FoldMode } from "../types";
+import type { CutPath, FoldMode, HalfFold } from "../types";
 
 // ======== 折叠区域遮罩 ========
 
-export function FoldedClipShape({ mode }: { mode: FoldMode }) {
+export function FoldedClipShape({
+  mode,
+  halfFold = "vertical",
+}: {
+  mode: FoldMode;
+  halfFold?: HalfFold;
+}) {
+  if (mode === "half" && halfFold === "horizontal") {
+    return <rect x="52" y="64" width="216" height="96" rx="18" />;
+  }
   if (mode === "half") return <rect x="64" y="52" width="96" height="216" rx="18" />;
   if (mode === "quarter") return <rect x="64" y="64" width="96" height="96" rx="18" />;
   if (mode === "sixth") return <path d="M160 160 L160 38 A122 122 0 0 1 266 99 Z" />;
@@ -15,14 +24,15 @@ export function FoldedClipShape({ mode }: { mode: FoldMode }) {
 
 // ======== 折叠红纸（含折痕虚线） ========
 
-export function FoldedPaperShape({ mode }: { mode: FoldMode }) {
+export function FoldedPaperShape({ mode, halfFold = "vertical" }: { mode: FoldMode; halfFold?: HalfFold }) {
   return (
     <>
       <g className="folded-paper">
-        <FoldedClipShape mode={mode} />
+        <FoldedClipShape mode={mode} halfFold={halfFold} />
       </g>
       <g className="fold-lines">
-        {mode === "half" && <line x1="160" y1="28" x2="160" y2="292" />}
+        {mode === "half" && halfFold === "vertical" && <line x1="160" y1="28" x2="160" y2="292" />}
+        {mode === "half" && halfFold === "horizontal" && <line x1="28" y1="160" x2="292" y2="160" />}
         {mode === "quarter" && (
           <>
             <line x1="160" y1="42" x2="160" y2="184" />
@@ -91,10 +101,20 @@ export function CutPathGroup({ paths }: { paths: CutPath[] }) {
 
 // ======== 展开后的多份镜像裁切 ========
 
-export function ExpandedCuts({ mode, paths }: { mode: FoldMode; paths: CutPath[] }) {
+export function ExpandedCuts({
+  mode,
+  paths,
+  halfFold = "vertical",
+}: {
+  mode: FoldMode;
+  paths: CutPath[];
+  halfFold?: HalfFold;
+}) {
   const transforms =
     mode === "half"
-      ? ["", "translate(320 0) scale(-1 1)"]
+      ? halfFold === "horizontal"
+        ? ["", "translate(0 320) scale(1 -1)"]
+        : ["", "translate(320 0) scale(-1 1)"]
       : mode === "quarter"
         ? [
             "",

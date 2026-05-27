@@ -39,12 +39,15 @@ type Bubble = {
 };
 
 const bubbleSeeds: Omit<Bubble, "x" | "y" | "vx" | "vy">[] = [
-  { id: "title", label: "谁是大裁谜", sub: "软乎乎剪纸派对", r: 118, className: "title-bubble", color: "radial-gradient(circle at 30% 24%, #ffffff, #ffcfda 36%, #ff5b73 100%)" },
-  { id: "fold", label: "折一折", r: 50, className: "tiny-bubble", color: "rgba(137, 200, 255, 0.54)" },
-  { id: "cut", label: "剪一剪", r: 56, className: "tiny-bubble", color: "rgba(110, 226, 200, 0.52)" },
-  { id: "guess", label: "猜一猜", r: 52, className: "tiny-bubble", color: "rgba(255, 214, 102, 0.62)" },
-  { id: "open", label: "展开啦", r: 42, className: "tiny-bubble", color: "rgba(155, 140, 255, 0.42)" },
-  { id: "gudu", label: "咕嘟", r: 44, className: "tiny-bubble", color: "rgba(255, 173, 143, 0.5)" },
+  { id: "title", label: "谁是大裁谜", sub: "软乎乎剪纸派对", r: 126, className: "title-bubble", color: "radial-gradient(circle at 30% 24%, #ffffff, #ffcfda 36%, #ff5b73 100%)" },
+  { id: "fold", label: "折一折", r: 56, className: "tiny-bubble", color: "rgba(137, 200, 255, 0.54)" },
+  { id: "cut", label: "剪一剪", r: 62, className: "tiny-bubble", color: "rgba(110, 226, 200, 0.52)" },
+  { id: "guess", label: "抢答", r: 58, className: "tiny-bubble", color: "rgba(255, 214, 102, 0.62)" },
+  { id: "open", label: "展开啦", r: 48, className: "tiny-bubble", color: "rgba(155, 140, 255, 0.42)" },
+  { id: "gudu", label: "咕嘟", r: 50, className: "tiny-bubble", color: "rgba(255, 173, 143, 0.5)" },
+  { id: "round", label: "轮流剪", r: 52, className: "tiny-bubble", color: "rgba(255, 143, 163, 0.42)" },
+  { id: "score", label: "快猜高分", r: 46, className: "tiny-bubble", color: "rgba(255, 240, 185, 0.72)" },
+  { id: "paper", label: "红纸", r: 43, className: "tiny-bubble", color: "rgba(255, 79, 102, 0.32)" },
 ];
 
 function makeBubbles(width: number, height: number): Bubble[] {
@@ -56,6 +59,9 @@ function makeBubbles(width: number, height: number): Bubble[] {
     [0.57, 0.21],
     [0.54, 0.78],
     [0.82, 0.8],
+    [0.29, 0.8],
+    [0.47, 0.43],
+    [0.72, 0.76],
   ] : [
     [0.2, 0.46],
     [0.43, 0.24],
@@ -63,6 +69,9 @@ function makeBubbles(width: number, height: number): Bubble[] {
     [0.5, 0.72],
     [0.26, 0.82],
     [0.82, 0.72],
+    [0.63, 0.46],
+    [0.36, 0.58],
+    [0.7, 0.88],
   ];
   return bubbleSeeds.map((seed, index) => {
     const radius = seed.r * (compact ? (seed.id === "title" ? 0.76 : 0.68) : 1);
@@ -86,7 +95,7 @@ export function Lobby({
   multiplayer,
 }: LobbyProps) {
   const [burstKey, setBurstKey] = useState(0);
-  const [playerName, setPlayerName] = useState(multiplayer.localName || "你");
+  const [playerName, setPlayerName] = useState(multiplayer.localName === "你" ? "" : multiplayer.localName);
   const [joinCode, setJoinCode] = useState(
     () => new URLSearchParams(window.location.search).get("room") ?? ""
   );
@@ -281,9 +290,10 @@ export function Lobby({
               <div className="multiplayer-controls">
                 <input
                   value={playerName}
-                  onChange={(event) => setPlayerName(event.target.value)}
-                  placeholder="你的昵称"
+                  onChange={(event) => setPlayerName(event.target.value.slice(0, 10))}
+                  placeholder="你的昵称，最多10字"
                   autoComplete="nickname"
+                  maxLength={10}
                 />
                 <div className="room-code-row">
                   <input

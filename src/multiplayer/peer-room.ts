@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Peer, { type DataConnection } from "peerjs";
-import type { CutPath, Guess, Phase, Player, Room } from "../types";
+import type { CutPath, Guess, HalfFold, Phase, Player, Room } from "../types";
 
 export type NetworkRole = "demo" | "host" | "guest";
 export type NetworkStatus = "offline" | "connecting" | "hosting" | "joined" | "error";
@@ -9,6 +9,9 @@ export type PublicRoomSnapshot = {
   phase: Phase;
   roomId: Room["id"];
   answer?: string;
+  answerLength: number;
+  drawerId: string;
+  halfFold: HalfFold;
   timeLeft: number;
   paths: CutPath[];
   guesses: Guess[];
@@ -19,14 +22,30 @@ export type PublicRoomSnapshot = {
 
 type JoinMessage = { type: "join"; player: Player };
 type GuessMessage = { type: "guess"; playerId: string; text: string };
+type PathsMessage = { type: "paths"; paths: CutPath[] };
+type HalfFoldMessage = { type: "half_fold"; halfFold: HalfFold };
+type FinishMessage = { type: "finish" };
+type PrivateAnswerMessage = { type: "private_answer"; answer: string };
 type SnapshotMessage = { type: "snapshot"; snapshot: PublicRoomSnapshot };
 type HostClosedMessage = { type: "host_closed" };
-type RoomMessage = JoinMessage | GuessMessage | SnapshotMessage | HostClosedMessage;
+type RoomMessage =
+  | JoinMessage
+  | GuessMessage
+  | PathsMessage
+  | HalfFoldMessage
+  | FinishMessage
+  | PrivateAnswerMessage
+  | SnapshotMessage
+  | HostClosedMessage;
 
 type PeerRoomOptions = {
   onGuestJoin: (player: Player) => void;
   onGuestGuess: (playerId: string, text: string) => void;
+  onGuestPaths: (paths: CutPath[]) => void;
+  onGuestHalfFold: (halfFold: HalfFold) => void;
+  onGuestFinish: () => void;
   onSnapshot: (snapshot: PublicRoomSnapshot) => void;
+  onPrivateAnswer: (answer: string) => void;
   onHostDisconnect: () => void;
   getSnapshot: () => PublicRoomSnapshot;
 };
@@ -78,7 +97,11 @@ function friendlyPeerError(message = "") {
 export function usePeerRoom({
   onGuestJoin,
   onGuestGuess,
+  onGuestPaths,
+  onGuestHalfFold,
+  onGuestFinish,
   onSnapshot,
+  onPrivateAnswer,
   onHostDisconnect,
   getSnapshot,
 }: PeerRoomOptions) {
@@ -100,7 +123,11 @@ export function usePeerRoom({
   const handlersRef = useRef({
     onGuestJoin,
     onGuestGuess,
+    onGuestPaths,
+    onGuestHalfFold,
+    onGuestFinish,
     onSnapshot,
+    onPrivateAnswer,
     onHostDisconnect,
     getSnapshot,
   });
@@ -109,11 +136,25 @@ export function usePeerRoom({
     handlersRef.current = {
       onGuestJoin,
       onGuestGuess,
+      onGuestPaths,
+      onGuestHalfFold,
+      onGuestFinish,
       onSnapshot,
+      onPrivateAnswer,
       onHostDisconnect,
       getSnapshot,
     };
-  }, [onGuestJoin, onGuestGuess, onSnapshot, onHostDisconnect, getSnapshot]);
+  }, [
+    onGuestJoin,
+    onGuestGuess,
+    onGuestPaths,
+    onGuestHalfFold,
+    onGuestFinish,
+    onSnapshot,
+    onPrivateAnswer,
+    onHostDisconnect,
+    getSnapshot,
+  ]);
 
   const closeRoom = useCallback(() => {
     const hostConn = hostConnRef.current;
@@ -167,6 +208,15 @@ export function usePeerRoom({
       }
       if (message.type === "guess") {
         handlersRef.current.onGuestGuess(message.playerId, message.text);
+      }
+      if (message.type === "paths") {
+        handlersRef.current.onGuestPaths(message.paths);
+      }
+      if (message.type === "half_fold") {
+        handlersRef.current.onGuestHalfFold(message.halfFold);
+      }
+      if (message.type === "finish") {
+        handlersRef.current.onGuestFinish();
       }
     });
     conn.on("close", () => {
@@ -239,6 +289,7 @@ export function usePeerRoom({
       conn.on("data", (raw) => {
         const message = raw as RoomMessage;
         if (message.type === "snapshot") handlersRef.current.onSnapshot(message.snapshot);
+        if (message.type === "private_answer") handlersRef.current.onPrivateAnswer(message.answer);
         if (message.type === "host_closed") {
           setStatus("offline");
           setError("房主结束了房间。");
@@ -269,6 +320,30 @@ export function usePeerRoom({
     conn.send({ type: "guess", playerId: localPlayer.id, text } satisfies GuessMessage);
   }, [localPlayer.id]);
 
+  const sendPaths = useCallback((paths: CutPath[]) => {
+    const conn = hostConnRef.current;
+    if (!conn?.open) return;
+    conn.send({ type: "paths", paths } satisfies PathsMessage);
+  }, []);
+
+  const sendHalfFold = useCallback((halfFold: HalfFold) => {
+    const conn = hostConnRef.current;
+    if (!conn?.open) return;
+    conn.send({ type: "half_fold", halfFold } satisfies HalfFoldMessage);
+  }, []);
+
+  const sendFinish = useCallback(() => {
+    const conn = hostConnRef.current;
+    if (!conn?.open) return;
+    conn.send({ type: "finish" } satisfies FinishMessage);
+  }, []);
+
+  const sendPrivateAnswer = useCallback((playerId: string, answer: string) => {
+    const conn = guestConnsRef.current.find((item) => item.peer === playerId);
+    if (!conn?.open) return;
+    conn.send({ type: "private_answer", answer } satisfies PrivateAnswerMessage);
+  }, []);
+
   return {
     role,
     status,
@@ -280,6 +355,10 @@ export function usePeerRoom({
     joinRoom,
     closeRoom,
     broadcastSnapshot,
+    sendPrivateAnswer,
     sendGuess,
+    sendPaths,
+    sendHalfFold,
+    sendFinish,
   };
 }
