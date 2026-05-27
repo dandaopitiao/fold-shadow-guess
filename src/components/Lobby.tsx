@@ -94,6 +94,9 @@ export function Lobby({
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const [burstPoint, setBurstPoint] = useState({ x: 0, y: 0 });
   const stageRef = useRef<HTMLDivElement | null>(null);
+  const isOnlineRoom = multiplayer.role !== "demo";
+  const isHostRoom = multiplayer.role === "host";
+  const canHostStart = isHostRoom && multiplayer.status === "hosting";
 
   useEffect(() => {
     const stage = stageRef.current;
@@ -109,9 +112,18 @@ export function Lobby({
 
   useEffect(() => {
     let frame = 0;
-    const tick = () => {
+    let lastTick = 0;
+    const tick = (now: number) => {
       const stage = stageRef.current;
-      if (!stage) return;
+      if (!stage) {
+        frame = window.requestAnimationFrame(tick);
+        return;
+      }
+      if (now - lastTick < 33) {
+        frame = window.requestAnimationFrame(tick);
+        return;
+      }
+      lastTick = now;
       const rect = stage.getBoundingClientRect();
       setBubbles((current) => {
         const next = current.map((bubble) => {
@@ -239,89 +251,130 @@ export function Lobby({
           <p>
             选个房间，在折好的红纸上剪出你的题目。其他小伙伴可盯着展开的图案抢答，猜得越早得分越高～
           </p>
-          <div className="hero-start-row">
-            <button
-              className="primary-button hero-start-button"
-              onClick={() => {
-                sound.click();
-                onStart();
-              }}
-            >
-              <Play size={24} />
-              <span>开始游戏</span>
-              <small>{selectedRoom.name}</small>
-            </button>
-            <span className="room-pill">{selectedRoom.foldName} · {selectedRoom.feature}</span>
-          </div>
+          {!isOnlineRoom ? (
+            <div className="hero-start-row">
+              <button
+                className="primary-button hero-start-button"
+                onClick={() => {
+                  sound.click();
+                  onStart();
+                }}
+              >
+                <Play size={24} />
+                <span>单机试玩</span>
+                <small>{selectedRoom.name}</small>
+              </button>
+              <span className="room-pill">{selectedRoom.foldName} · {selectedRoom.feature}</span>
+            </div>
+          ) : (
+            <div className="online-wait-banner">
+              <span>{isHostRoom ? "你已经在房间里啦" : "已进入朋友的房间"}</span>
+              <strong>{isHostRoom ? "等人到齐后，由房主开始本局" : "等房主点开始，本局就开剪"}</strong>
+            </div>
+          )}
           <div className="multiplayer-card">
             <div className="panel-title">
               <Wifi size={18} />
-              联机小房间
+              {isOnlineRoom ? "房间等待区" : "联机小房间"}
             </div>
-            <div className="multiplayer-controls">
-              <input
-                value={playerName}
-                onChange={(event) => setPlayerName(event.target.value)}
-                placeholder="你的昵称"
-                autoComplete="nickname"
-              />
-              <div className="room-code-row">
+            {!isOnlineRoom ? (
+              <div className="multiplayer-controls">
                 <input
-                  value={joinCode}
-                  onChange={(event) => setJoinCode(sanitizeRoomCode(event.target.value))}
-                  placeholder="输入房间码"
-                  inputMode="text"
-                  maxLength={6}
+                  value={playerName}
+                  onChange={(event) => setPlayerName(event.target.value)}
+                  placeholder="你的昵称"
+                  autoComplete="nickname"
                 />
+                <div className="room-code-row">
+                  <input
+                    value={joinCode}
+                    onChange={(event) => setJoinCode(sanitizeRoomCode(event.target.value))}
+                    placeholder="输入房间码"
+                    inputMode="text"
+                    maxLength={6}
+                  />
+                  <button
+                    className="ghost-button"
+                    onClick={() => multiplayer.onJoin(joinCode, playerName)}
+                  >
+                    加入
+                  </button>
+                </div>
+                <div className="room-code-row create-code-row">
+                  <input
+                    value={createCode}
+                    onChange={(event) => setCreateCode(sanitizeRoomCode(event.target.value))}
+                    placeholder="自定房间码，可留空"
+                    inputMode="text"
+                    maxLength={6}
+                  />
+                  <span className="code-hint">留空自动生成</span>
+                </div>
                 <button
-                  className="ghost-button"
-                  onClick={() => multiplayer.onJoin(joinCode, playerName)}
+                  className="ghost-button multiplayer-create"
+                  onClick={() => multiplayer.onCreate(playerName, createCode)}
                 >
-                  加入
+                  创建联机房
                 </button>
               </div>
-              <div className="room-code-row create-code-row">
-                <input
-                  value={createCode}
-                  onChange={(event) => setCreateCode(sanitizeRoomCode(event.target.value))}
-                  placeholder="自定房间码，可留空"
-                  inputMode="text"
-                  maxLength={6}
-                />
-                <span className="code-hint">留空自动生成</span>
-              </div>
-              <button
-                className="ghost-button multiplayer-create"
-                onClick={() => multiplayer.onCreate(playerName, createCode)}
-              >
-                创建联机房
-              </button>
-            </div>
-            {multiplayer.role !== "demo" && (
-              <div className="room-share">
-                <span>
-                  {multiplayer.status === "connecting"
-                    ? "正在连接..."
-                    : multiplayer.role === "host"
-                      ? `房间码 ${multiplayer.roomCode}`
-                      : `已加入 ${multiplayer.roomCode}`}
-                </span>
-                {multiplayer.shareUrl && (
+            ) : (
+              <div className="room-lobby">
+                <div className="room-share">
+                  <span>
+                    {multiplayer.status === "connecting"
+                      ? "正在连接..."
+                      : isHostRoom
+                        ? `房间码 ${multiplayer.roomCode}`
+                        : `已加入 ${multiplayer.roomCode}`}
+                  </span>
+                  {multiplayer.shareUrl && (
+                    <button
+                      className="icon-button small"
+                      title="复制邀请链接"
+                      onClick={() => navigator.clipboard?.writeText(multiplayer.shareUrl)}
+                    >
+                      <Copy size={15} />
+                    </button>
+                  )}
                   <button
                     className="icon-button small"
-                    title="复制邀请链接"
-                    onClick={() => navigator.clipboard?.writeText(multiplayer.shareUrl)}
+                    title="退出联机"
+                    onClick={multiplayer.onLeave}
                   >
-                    <Copy size={15} />
+                    <LogOut size={15} />
                   </button>
+                </div>
+                <div className="room-lobby-summary">
+                  <span>{selectedRoom.name}</span>
+                  <strong>{selectedRoom.foldName}</strong>
+                  <small>{selectedRoom.feature} · {players.length} 人已入座</small>
+                </div>
+                <div className="member-chips" aria-label="房间成员">
+                  {players.map((player) => (
+                    <span className="member-chip" key={player.id}>
+                      <b>{player.avatar}</b>
+                      {player.name}
+                      {player.id === "me" && isHostRoom ? <em>房主</em> : null}
+                    </span>
+                  ))}
+                </div>
+                {isHostRoom ? (
+                  <button
+                    className="primary-button room-start-button"
+                    disabled={!canHostStart}
+                    onClick={() => {
+                      sound.click();
+                      onStart();
+                    }}
+                  >
+                    <Play size={20} />
+                    {canHostStart ? "开始本局" : "房间连接中"}
+                  </button>
+                ) : (
+                  <div className="guest-waiting-card">
+                    房主准备好后会开始本局，你只要盯紧剪纸抢答就行。
+                  </div>
                 )}
-                <button
-                  className="icon-button small"
-                  title="退出联机"
-                  onClick={multiplayer.onLeave}
-                >
-                  <LogOut size={15} />
-                </button>
               </div>
             )}
             {multiplayer.error && <p className="multiplayer-error">{multiplayer.error}</p>}
