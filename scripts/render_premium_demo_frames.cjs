@@ -15,11 +15,11 @@ const sourceFps = manifest.fps;
 
 const scenes = [
   { start: 0, end: 4.2, kind: "title", title: "谁是大裁谜", sub: "剪纸版你画我猜" },
-  { start: 4.2, end: 9.2, kind: "game", from: 0.2, to: 4.2, title: "进房", sub: "", focus: "wide", textLeft: 92, textTop: 116 },
-  { start: 9.2, end: 15.3, kind: "game", from: 4.8, to: 10.5, title: "开剪", sub: "", focus: "wide", textLeft: 88, textTop: 116 },
-  { start: 15.3, end: 21.7, kind: "game", from: 10.5, to: 15.7, title: "展开", sub: "", focus: "wide", textLeft: 940, textTop: 112 },
-  { start: 21.7, end: 29.4, kind: "game", from: 15.7, to: 19.0, title: "抢答", sub: "", focus: "result", textLeft: 920, textTop: 116 },
-  { start: 29.4, end: 36.1, kind: "game", from: 17.2, to: 19.0, title: "结算", sub: "", focus: "result", textLeft: 96, textTop: 522 },
+  { start: 4.2, end: 9.2, kind: "game", from: 0.2, to: 3.6, title: "进房", sub: "好友准备入场", textLeft: 76, textTop: 236, cardLeft: 420, cardTop: 126, cardWidth: 800, cardHeight: 450 },
+  { start: 9.2, end: 15.3, kind: "game", from: 4.4, to: 9.6, title: "开剪", sub: "只剪折好的一半", textLeft: 76, textTop: 236, cardLeft: 420, cardTop: 126, cardWidth: 800, cardHeight: 450 },
+  { start: 15.3, end: 21.7, kind: "game", from: 9.6, to: 13.0, title: "展开", sub: "一半变成完整图案", textLeft: 76, textTop: 236, cardLeft: 420, cardTop: 126, cardWidth: 800, cardHeight: 450 },
+  { start: 21.7, end: 29.4, kind: "game", from: 13.0, to: 16.7, title: "抢答", sub: "猜中越早分越高", textLeft: 900, textTop: 236, cardLeft: 58, cardTop: 126, cardWidth: 800, cardHeight: 450 },
+  { start: 29.4, end: 36.1, kind: "game", from: 13.8, to: 16.8, title: "结算", sub: "大裁谜揭晓", textLeft: 900, textTop: 236, cardLeft: 58, cardTop: 126, cardWidth: 800, cardHeight: 450 },
   { start: 36.1, end: 44.0, kind: "end", title: "开房", sub: "剪纸，猜全图" },
 ];
 
@@ -86,7 +86,8 @@ function html() {
   #game {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
+    background: #fffaf4;
   }
   .brand {
     position: absolute;
@@ -142,24 +143,25 @@ function html() {
     position: absolute;
     left: 88px;
     top: 116px;
-    padding: 18px 26px 20px;
-    border: 5px solid rgba(255,255,255,.96);
-    border-radius: 999px;
-    background: rgba(255,255,255,.86);
-    box-shadow: 0 18px 42px rgba(83,37,55,.15);
-    text-align: center;
+    width: 300px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    text-align: left;
   }
   #panelTitle {
     color: #341322;
-    font-size: 56px;
-    line-height: 1;
+    font-size: 82px;
+    line-height: .94;
     font-weight: 1000;
   }
   #panelSub {
-    margin-top: 6px;
+    margin-top: 18px;
     color: #7b4b5e;
-    font-size: 22px;
-    line-height: 1.28;
+    font-size: 28px;
+    line-height: 1.22;
     font-weight: 900;
   }
   .bubble {
@@ -185,12 +187,25 @@ function html() {
     font-size: 34px;
     font-weight: 1000;
   }
+  .spark {
+    position: absolute;
+    width: 170px;
+    height: 170px;
+    border-radius: 48px;
+    background: rgba(255, 216, 105, .34);
+    transform: rotate(18deg);
+    filter: blur(.2px);
+  }
+  #spark1 { left: 288px; top: 78px; }
+  #spark2 { right: 44px; bottom: 48px; background: rgba(117,226,201,.28); }
 </style>
 </head>
 <body>
   <div class="stage">
     <div class="dots"></div>
     <div class="brand"><div class="mark">咔</div><div>谁是大裁谜</div></div>
+    <div class="spark" id="spark1"></div>
+    <div class="spark" id="spark2"></div>
     <div id="gameCard"><img id="game" /></div>
     <div class="softPanel" id="panel"><div id="panelTitle"></div><div id="panelSub"></div></div>
     <div id="headline"></div>
@@ -211,6 +226,8 @@ function html() {
       const b1 = document.getElementById("b1");
       const b2 = document.getElementById("b2");
       const b3 = document.getElementById("b3");
+      const spark1 = document.getElementById("spark1");
+      const spark2 = document.getElementById("spark2");
       document.getElementById("panelTitle").textContent = payload.title || "";
       document.getElementById("panelSub").textContent = payload.sub || "";
       headline.textContent = payload.headline || "";
@@ -219,6 +236,8 @@ function html() {
       panel.style.display = payload.panel ? "block" : "none";
       panel.style.left = payload.textLeft + "px";
       panel.style.top = payload.textTop + "px";
+      spark1.style.opacity = payload.decorOpacity;
+      spark2.style.opacity = payload.decorOpacity;
       headline.style.display = payload.headline ? "block" : "none";
       subline.style.display = payload.endSub ? "block" : "none";
       card.style.display = payload.img ? "block" : "none";
@@ -283,6 +302,7 @@ async function main() {
         scale: 1,
         cardOpacity: 0,
         textOpacity: inOut,
+        decorOpacity: 1,
         textLeft: 0,
         textTop: 0,
         bubbles: [
@@ -307,6 +327,7 @@ async function main() {
         scale: 1,
         cardOpacity: 0,
         textOpacity: inOut,
+        decorOpacity: 1,
         textLeft: 0,
         textTop: 0,
         bubbles: [
@@ -328,13 +349,14 @@ async function main() {
         sub: scene.sub,
         textLeft: scene.textLeft,
         textTop: scene.textTop,
-        left: 70,
-        top: 58,
-        width: 1140,
-        height: 641,
-        scale: 0.985 + smooth(local) * 0.018,
+        left: scene.cardLeft,
+        top: scene.cardTop,
+        width: scene.cardWidth,
+        height: scene.cardHeight,
+        scale: 0.985 + smooth(local) * 0.012,
         cardOpacity: inOut,
         textOpacity: inOut,
+        decorOpacity: 0.65,
         bubbles: [
           time > 11 && time < 15.2 ? { text: "我猜猫脸？", opacity: 1, y: Math.sin(time * 4) * 5 } : null,
           time > 13.6 && time < 18.5 ? { text: "像葫芦！", opacity: 1, y: Math.sin(time * 3) * 5 } : null,

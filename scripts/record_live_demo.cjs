@@ -36,6 +36,13 @@ async function drawPath(page, svgBox, points, duration = 900) {
   await sleep(260);
 }
 
+function ellipsePoints(cx, cy, rx, ry, steps = 44) {
+  return Array.from({ length: steps + 1 }, (_, index) => {
+    const angle = (index / steps) * Math.PI * 2;
+    return [cx + Math.cos(angle) * rx, cy + Math.sin(angle) * ry];
+  });
+}
+
 async function main() {
   resetDir(outDir);
 
@@ -57,12 +64,17 @@ async function main() {
   const capture = async () => {
     while (recording) {
       const name = `frame_${String(frame).padStart(5, "0")}.jpg`;
-      await page.screenshot({
-        path: path.join(outDir, name),
-        type: "jpeg",
-        quality: 88,
-        captureBeyondViewport: false,
-      });
+      try {
+        await page.screenshot({
+          path: path.join(outDir, name),
+          type: "jpeg",
+          quality: 88,
+          captureBeyondViewport: false,
+        });
+      } catch (error) {
+        if (!recording || String(error).includes("TargetCloseError")) break;
+        throw error;
+      }
       frame += 1;
       await sleep(interval);
     }
@@ -73,6 +85,15 @@ async function main() {
     .catch(() => undefined);
   await Promise.race([navigation, sleep(3000)]);
   await page.waitForSelector(".hero-start-button", { timeout: 10_000 });
+  await page.evaluate(() => {
+    let calls = 0;
+    const originalRandom = Math.random;
+    Math.random = () => {
+      calls += 1;
+      if (calls < 12) return 0.105;
+      return originalRandom();
+    };
+  });
 
   const capturePromise = capture();
 
@@ -97,55 +118,36 @@ async function main() {
     return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
   });
 
-  // Draw a few visible, playful cuts inside the folded paper area.
+  // Draw a clean butterfly-like paper cut: two rounded wing cuts plus a slim body.
   await drawPath(page, box, [
-    [0.24, 0.32],
-    [0.30, 0.24],
-    [0.39, 0.25],
-    [0.43, 0.34],
-    [0.37, 0.43],
-    [0.28, 0.42],
-    [0.24, 0.32],
-  ]);
-  await sleep(900);
+    [0.485, 0.28],
+    [0.458, 0.215],
+    [0.398, 0.185],
+    [0.322, 0.202],
+    [0.265, 0.275],
+    [0.257, 0.365],
+    [0.314, 0.435],
+    [0.396, 0.432],
+    [0.462, 0.365],
+    [0.485, 0.28],
+  ], 1100);
+  await sleep(640);
   await drawPath(page, box, [
-    [0.22, 0.62],
-    [0.31, 0.56],
-    [0.41, 0.61],
-    [0.36, 0.72],
-    [0.25, 0.73],
-    [0.22, 0.62],
-  ]);
+    [0.478, 0.535],
+    [0.424, 0.492],
+    [0.340, 0.510],
+    [0.284, 0.585],
+    [0.295, 0.692],
+    [0.382, 0.748],
+    [0.458, 0.687],
+    [0.492, 0.604],
+    [0.478, 0.535],
+  ], 1050);
   await sleep(900);
-
-  const horizontalButton = await page.$x?.("//button[contains(., '横着折')]");
-  if (horizontalButton && horizontalButton[0]) {
-    await horizontalButton[0].click();
-    await sleep(800);
-  } else {
-    await page.evaluate(() => {
-      const button = [...document.querySelectorAll("button")].find((node) =>
-        (node.textContent || "").includes("横着折")
-      );
-      button?.click();
-    });
-    await sleep(800);
-  }
-
-  const box2 = await page.$eval(".draw-surface", (element) => {
-    const rect = element.getBoundingClientRect();
-    return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
-  });
-  await drawPath(page, box2, [
-    [0.34, 0.25],
-    [0.48, 0.27],
-    [0.63, 0.31],
-    [0.73, 0.39],
-    [0.65, 0.48],
-    [0.48, 0.46],
-    [0.34, 0.25],
-  ]);
-  await sleep(1600);
+  await drawPath(page, box, ellipsePoints(0.487, 0.505, 0.012, 0.19, 42), 900);
+  await sleep(900);
+  await drawPath(page, box, ellipsePoints(0.355, 0.318, 0.018, 0.026, 28), 640);
+  await sleep(560);
 
   await page.evaluate(() => {
     const button = [...document.querySelectorAll("button")].find((node) =>
@@ -154,20 +156,6 @@ async function main() {
     button?.click();
   });
   await sleep(6200);
-
-  const nextButton = await page.evaluateHandle(() =>
-    [...document.querySelectorAll("button")].find((node) =>
-      (node.textContent || "").includes("下一局")
-    )
-  );
-  if (nextButton) {
-    try {
-      await nextButton.click();
-      await sleep(2800);
-    } catch {
-      // The button may not exist in edge cases; the result scene is enough.
-    }
-  }
 
   await sleep(2600);
   recording = false;
