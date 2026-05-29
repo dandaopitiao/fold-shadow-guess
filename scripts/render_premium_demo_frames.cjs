@@ -14,13 +14,13 @@ const sourceFrames = manifest.frames;
 const sourceFps = manifest.fps;
 
 const scenes = [
-  { start: 0, end: 4.2, kind: "title", title: "谁是大裁谜", sub: "不是画出来，是剪出来的你画我猜" },
-  { start: 4.2, end: 9.2, kind: "game", from: 0.2, to: 4.2, title: "开房，一起猜", sub: "泡泡大厅进场，朋友等你开剪", focus: "wide" },
-  { start: 9.2, end: 15.3, kind: "game", from: 4.8, to: 10.5, title: "剪纸手只看题目", sub: "其他人只能看过程，越猜越离谱", focus: "wide" },
-  { start: 15.3, end: 21.7, kind: "game", from: 10.5, to: 15.7, title: "一刀展开成全图", sub: "左边局部开剪，右边实时预览", focus: "wide" },
-  { start: 21.7, end: 29.4, kind: "game", from: 15.7, to: 19.0, title: "完成了，全场抢答", sub: "猜中顺序决定分数", focus: "result" },
-  { start: 29.4, end: 36.1, kind: "game", from: 17.2, to: 19.0, title: "本局的大裁谜揭晓", sub: "下一局，换朋友上场剪", focus: "result" },
-  { start: 36.1, end: 44.0, kind: "end", title: "开房，剪纸，猜全图", sub: "把中国剪纸，变成一场在线派对" },
+  { start: 0, end: 4.2, kind: "title", title: "谁是大裁谜", sub: "剪纸版你画我猜" },
+  { start: 4.2, end: 9.2, kind: "game", from: 0.2, to: 4.2, title: "进房", sub: "", focus: "wide", textLeft: 92, textTop: 116 },
+  { start: 9.2, end: 15.3, kind: "game", from: 4.8, to: 10.5, title: "开剪", sub: "", focus: "wide", textLeft: 88, textTop: 116 },
+  { start: 15.3, end: 21.7, kind: "game", from: 10.5, to: 15.7, title: "展开", sub: "", focus: "wide", textLeft: 940, textTop: 112 },
+  { start: 21.7, end: 29.4, kind: "game", from: 15.7, to: 19.0, title: "抢答", sub: "", focus: "result", textLeft: 920, textTop: 116 },
+  { start: 29.4, end: 36.1, kind: "game", from: 17.2, to: 19.0, title: "结算", sub: "", focus: "result", textLeft: 96, textTop: 522 },
+  { start: 36.1, end: 44.0, kind: "end", title: "开房", sub: "剪纸，猜全图" },
 ];
 
 function frameFile(seconds) {
@@ -114,9 +114,10 @@ function html() {
   }
   #headline {
     position: absolute;
-    left: 72px;
-    right: 72px;
-    bottom: 54px;
+    left: 50%;
+    top: 312px;
+    width: 920px;
+    transform: translate(-50%, -50%);
     text-align: center;
     color: #341322;
     font-size: 64px;
@@ -126,9 +127,10 @@ function html() {
   }
   #subline {
     position: absolute;
-    left: 120px;
-    right: 120px;
-    bottom: 28px;
+    left: 50%;
+    top: 394px;
+    width: 860px;
+    transform: translateX(-50%);
     text-align: center;
     color: #7b4b5e;
     font-size: 28px;
@@ -138,27 +140,25 @@ function html() {
   }
   .softPanel {
     position: absolute;
-    left: 50%;
-    bottom: 48px;
-    transform: translateX(-50%);
-    max-width: 930px;
-    padding: 20px 30px 23px;
+    left: 88px;
+    top: 116px;
+    padding: 18px 26px 20px;
     border: 5px solid rgba(255,255,255,.96);
-    border-radius: 32px;
+    border-radius: 999px;
     background: rgba(255,255,255,.86);
     box-shadow: 0 18px 42px rgba(83,37,55,.15);
     text-align: center;
   }
   #panelTitle {
     color: #341322;
-    font-size: 50px;
-    line-height: 1.08;
+    font-size: 56px;
+    line-height: 1;
     font-weight: 1000;
   }
   #panelSub {
-    margin-top: 8px;
+    margin-top: 6px;
     color: #7b4b5e;
-    font-size: 27px;
+    font-size: 22px;
     line-height: 1.28;
     font-weight: 900;
   }
@@ -179,7 +179,7 @@ function html() {
     position: absolute;
     left: 0;
     right: 0;
-    bottom: 126px;
+    bottom: 118px;
     text-align: center;
     color: #df2545;
     font-size: 34px;
@@ -217,6 +217,8 @@ function html() {
       subline.textContent = payload.endSub || "";
       url.style.display = payload.url ? "block" : "none";
       panel.style.display = payload.panel ? "block" : "none";
+      panel.style.left = payload.textLeft + "px";
+      panel.style.top = payload.textTop + "px";
       headline.style.display = payload.headline ? "block" : "none";
       subline.style.display = payload.endSub ? "block" : "none";
       card.style.display = payload.img ? "block" : "none";
@@ -281,10 +283,12 @@ async function main() {
         scale: 1,
         cardOpacity: 0,
         textOpacity: inOut,
+        textLeft: 0,
+        textTop: 0,
         bubbles: [
-          { text: "开房", opacity: smooth(local), y: Math.sin(time * 3) * 6 },
-          { text: "抢答", opacity: smooth(local - 0.12), y: Math.sin(time * 2.7) * 6 },
-          { text: "展开", opacity: smooth(local - 0.24), y: Math.sin(time * 2.4) * 6 },
+          { text: "折", opacity: smooth(local), y: Math.sin(time * 3) * 6 },
+          { text: "剪", opacity: smooth(local - 0.12), y: Math.sin(time * 2.7) * 6 },
+          { text: "猜", opacity: smooth(local - 0.24), y: Math.sin(time * 2.4) * 6 },
         ],
       };
     } else if (scene.kind === "end") {
@@ -303,9 +307,11 @@ async function main() {
         scale: 1,
         cardOpacity: 0,
         textOpacity: inOut,
+        textLeft: 0,
+        textTop: 0,
         bubbles: [
-          { text: "下一局换你剪", opacity: smooth(local - 0.18), y: Math.sin(time * 3) * 6 },
-          { text: "本局的大裁谜是谁？", opacity: smooth(local - 0.3), y: Math.sin(time * 2.5) * 6 },
+          { text: "在线", opacity: smooth(local - 0.18), y: Math.sin(time * 3) * 6 },
+          { text: "派对", opacity: smooth(local - 0.3), y: Math.sin(time * 2.5) * 6 },
           null,
         ],
       };
@@ -320,6 +326,8 @@ async function main() {
         url: false,
         title: scene.title,
         sub: scene.sub,
+        textLeft: scene.textLeft,
+        textTop: scene.textTop,
         left: 70,
         top: 58,
         width: 1140,
