@@ -37,7 +37,7 @@ async function tryDoubao(segment, mp3Path) {
   const voiceType = env("DOUBAO_VOICE_TYPE") || env("VOLCENGINE_TTS_VOICE_TYPE");
   if (!appid || !token || !voiceType) return false;
 
-  const reqid = `fold-shadow-${segment.id}-${Date.now()}`;
+  const reqid = `cut-master-${segment.id}-${Date.now()}`;
   const response = await fetch("https://openspeech.bytedance.com/api/v1/tts", {
     method: "POST",
     headers: {
@@ -46,7 +46,7 @@ async function tryDoubao(segment, mp3Path) {
     },
     body: JSON.stringify({
       app: { appid, token, cluster },
-      user: { uid: "fold-shadow-demo" },
+      user: { uid: "cut-master-demo" },
       audio: {
         voice_type: voiceType,
         encoding: "mp3",

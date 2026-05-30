@@ -2,6 +2,6 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-  base: process.env.GITHUB_PAGES === "true" ? "/fold-shadow-guess/" : "/",
+  base: process.env.GITHUB_PAGES === "true" ? "/who-is-the-cut-master/" : "/",
   plugins: [react()],
 });

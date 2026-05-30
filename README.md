@@ -6,7 +6,7 @@
 
 核心创新在于：**剪纸不是视觉皮肤，而是玩法约束**。你只能在折叠纸面上用有限刀口表达形意，展开后的对称效果既可能惊艳全场，也可能离谱到让人笑出声 —— 这种天然的反差，正是游戏的乐趣来源。
 
-在线试玩：<https://dandaopitiao.github.io/fold-shadow-guess/>
+在线试玩：<https://LeonidasZhak.github.io/who-is-the-cut-master/>
 
 ---
 
@@ -79,12 +79,12 @@ npm run preview
 
 ## 当前 QA 状态
 
-最近一次完整检查：2026-05-27。
+最近一次完整检查：2026-05-30。
 
-- `npm run build` 已通过，生产包可正常生成。
+- 干净临时工作副本中执行 `npm ci && GITHUB_PAGES=true npm run build` 已通过，生产包可正常生成，并确认资源路径使用 `/who-is-the-cut-master/`。
 - 使用 Playwright CLI 抽查首页快照，确认生产预览能打开主界面。
 - 使用移动端自动化脚本验证 390x844 视口下的单人完整流程：大厅 → 开始 → 切换二折方向 → 完成了 → 结算页；无横向溢出，无页面级报错。
-- 线上 GitHub Pages 已确认加载最新构建资源：<https://dandaopitiao.github.io/fold-shadow-guess/>
+- 线上 GitHub Pages 已确认加载最新构建资源：<https://LeonidasZhak.github.io/who-is-the-cut-master/>
 - 双浏览器 P2P 自动化测试受公共 PeerJS 信令稳定性影响，偶发停在连接准备或加入等待阶段；已在代码中加入房间快照补发、结果页兜底和 ErrorBoundary，未复现“开始后白屏”的运行时崩溃。
 
 ---
@@ -93,6 +93,7 @@ npm run preview
 
 ```text
 作品名称：《谁是大裁谜》
+英文名称：Who Is the Cut Master
 作品类型：Web 互动游戏 / 多人竞猜 / 传统文化创意游戏
 创作方向：传统文化赛道
 一句话：剪纸版「你画我猜」—— 在折叠红纸上剪局部，系统自动展开，大家来猜你剪了什么。

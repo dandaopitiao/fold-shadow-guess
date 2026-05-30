@@ -4,7 +4,7 @@ const puppeteer = require("../tmp/e2e/node_modules/puppeteer-core");
 
 const root = path.resolve(__dirname, "..");
 const frameDir = path.join(root, "release/submission_20260524/remotion_short/public/live-demo-frames");
-const outDir = path.join(root, "release/submission_20260524/premium-demo-frames");
+const outDir = process.env.PREMIUM_FRAME_OUT || path.join(root, "release/submission_20260524/premium-demo-frames");
 const fps = 15;
 const duration = 44;
 const total = fps * duration;
@@ -210,7 +210,7 @@ function html() {
     <div class="softPanel" id="panel"><div id="panelTitle"></div><div id="panelSub"></div></div>
     <div id="headline"></div>
     <div id="subline"></div>
-    <div id="url">dandaopitiao.github.io/fold-shadow-guess/</div>
+    <div id="url">LeonidasZhak.github.io/who-is-the-cut-master/</div>
     <div class="bubble" id="b1"></div>
     <div class="bubble" id="b2"></div>
     <div class="bubble" id="b3"></div>
@@ -270,16 +270,29 @@ async function main() {
   fs.rmSync(outDir, { recursive: true, force: true });
   fs.mkdirSync(outDir, { recursive: true });
 
-  const browser = await puppeteer.launch({
-    headless: "new",
-    executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    args: ["--no-sandbox"],
-    defaultViewport: { width: 1280, height: 720, deviceScaleFactor: 1 },
-  });
-  const page = await browser.newPage();
-  await page.setContent(html(), { waitUntil: "load" });
+  let browser;
+  let page;
+  async function openPage() {
+    browser = await puppeteer.launch({
+      headless: "new",
+      executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      args: ["--no-sandbox"],
+      defaultViewport: { width: 1280, height: 720, deviceScaleFactor: 1 },
+    });
+    page = await browser.newPage();
+    await page.setContent(html(), { waitUntil: "load" });
+  }
+
+  await openPage();
 
   for (let i = 0; i < total; i += 1) {
+    if (i % 60 === 0) {
+      console.log(`rendering premium frame ${i + 1}/${total}`);
+    }
+    if (i > 0 && i % 180 === 0) {
+      await browser.close();
+      await openPage();
+    }
     const time = i / fps;
     const scene = sceneAt(time);
     const local = (time - scene.start) / (scene.end - scene.start);
